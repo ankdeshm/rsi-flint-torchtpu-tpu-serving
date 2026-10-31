@@ -67,9 +67,12 @@ spec:
           if [ -f /models/models/RecursiveSI/flint/sglang/flint_sglang-0.1.4-py3-none-any.whl ]; then
             pip install --no-deps /models/models/RecursiveSI/flint/sglang/flint_sglang-0.1.4-py3-none-any.whl
           fi
-          # 2. Copy serving & benchmark scripts from GCS mount
+          # 2. Copy serving & benchmark scripts from GCS mount and patch flint_sglang
           if [ -d /models/flint-v7x-scripts ]; then
             cp -f /models/flint-v7x-scripts/* /workspace/ || true
+          fi
+          if [ -f /workspace/patch_flint_sglang_tpu.py ]; then
+            python3 /workspace/patch_flint_sglang_tpu.py
           fi
           # 3. Compile metadata_hook.so and start mock_metadata.py on 127.0.0.1:80
           if [ -f /workspace/metadata_hook.c ]; then

@@ -29,6 +29,7 @@ SCRIPTS = [
     "launch_host_replicas.py",
     "gateway_flint_v7x.py",
     "bench_flint_v7x.py",
+    "patch_flint_sglang_tpu.py",
     "patch_flint_router_topk.py",
 ]
 
@@ -96,7 +97,11 @@ def sync_scripts_to_pods(pods: list[dict[str, str]]) -> None:
         for s in SCRIPTS:
             src = LOCAL_DIR / s
             if src.exists():
-                run_kubectl(["cp", str(src), f"{pod}:/workspace/{s}", "-c", "flint-tpu"], timeout=60)
+                for attempt in range(3):
+                    res = run_kubectl(["cp", str(src), f"{pod}:/workspace/{s}", "-c", "flint-tpu"], check=False, timeout=60)
+                    if res.returncode == 0:
+                        break
+                    time.sleep(1.0)
         run_kubectl(
             [
                 "exec",
@@ -108,15 +113,18 @@ def sync_scripts_to_pods(pods: list[dict[str, str]]) -> None:
                 "-lc",
                 "gcc -shared -fPIC -O2 -o /workspace/metadata_hook.so /workspace/metadata_hook.c -ldl",
             ],
+            check=False,
             timeout=30,
         )
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        list(pool.map(sync_one, pods))
+    for p in pods:
+        sync_one(p)
 
 
 def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict:
-    replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // args.tp_size)
+    dp_size = args.dp_size if args.dp_size > 0 else (2 if args.tp_size == 1 else 1)
+    cores_per_srv = args.tp_size * dp_size
+    replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // cores_per_srv)
 
     def start_host(p: dict[str, str]) -> dict:
         pod = p["pod"]
@@ -131,6 +139,8 @@ def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict
             args.model_path,
             "--tp-size",
             str(args.tp_size),
+            "--dp-size",
+            str(dp_size),
             "--ep-size",
             str(args.ep_size),
             "--num-replicas",
@@ -153,10 +163,14 @@ def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict
             str(args.max_prefill_tokens),
             "--max-running-requests",
             str(args.max_running_requests),
+            "--torch-compile-max-bs",
+            str(args.torch_compile_max_bs),
             "--page-size",
             str(args.page_size),
             "--swa-full-tokens-ratio",
             str(args.swa_full_tokens_ratio),
+            "--router-mode",
+            args.router_mode,
             "--wait-timeout",
             str(args.wait_timeout),
         ]
@@ -175,8 +189,8 @@ def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict
 
     host_List = pods[: args.num_hosts]
     print(
-        f"[orchestrator] Launching {args.run_name}: {len(host_List)} hosts x {replicas_per_host} replicas "
-        f"(TP={args.tp_size}, EP={args.ep_size}, model={args.model_path}, kv={args.kv_cache_dtype})...",
+        f"[orchestrator] Launching {args.run_name}: {len(host_List)} hosts x {replicas_per_host} servers "
+        f"(TP={args.tp_size}, DP_per_srv={dp_size}, EP={args.ep_size}, model={args.model_path}, kv={args.kv_cache_dtype}, router={args.router_mode})...",
         flush=True,
     )
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(host_List)) as pool:
@@ -230,22 +244,25 @@ def main() -> None:
     ap.add_argument("--model-path", default="/dev/shm/flint")
     ap.add_argument("--weights-dtype", default="bf16")
     ap.add_argument("--tp-size", type=int, default=2)
+    ap.add_argument("--dp-size", type=int, default=0, help="0 = auto (2 when tp_size==1 on v7x, else 1)")
     ap.add_argument("--ep-size", type=int, default=1)
     ap.add_argument("--num-hosts", type=int, default=4)
     ap.add_argument("--replicas-per-host", type=int, default=0)
     ap.add_argument("--kv-cache-dtype", default="fp8_e4m3")
     ap.add_argument("--attention-backend", default="pallas_tpu_rpa_v3")
     ap.add_argument("--moe-runner-backend", default="auto")
+    ap.add_argument("--router-mode", default="fused", choices=["fused", "stock"])
     ap.add_argument("--context-length", type=int, default=135168)
     ap.add_argument("--mem-fraction-static", type=float, default=0.85)
     ap.add_argument("--chunked-prefill-size", type=int, default=8192)
     ap.add_argument("--max-prefill-tokens", type=int, default=16384)
-    ap.add_argument("--max-running-requests", type=int, default=128)
+    ap.add_argument("--max-running-requests", type=int, default=64)
+    ap.add_argument("--torch-compile-max-bs", type=int, default=64)
     ap.add_argument("--page-size", type=int, default=64)
     ap.add_argument("--swa-full-tokens-ratio", type=float, default=-1.0)
     ap.add_argument("--disable-torch-compile", action="store_true")
     ap.add_argument("--extra-args", default="")
-    ap.add_argument("--wait-timeout", type=int, default=600)
+    ap.add_argument("--wait-timeout", type=int, default=1800)
     # Benchmark args
     ap.add_argument("--shapes", default="4096:1024,8192:1024,16384:1024")
     ap.add_argument("--hit-rates", default="0.0,0.8,0.95")
@@ -253,14 +270,14 @@ def main() -> None:
     ap.add_argument("--req-mult", type=int, default=2)
     ap.add_argument("--max-reqs", type=int, default=512)
     ap.add_argument("--fixed-num-requests", type=int, default=0)
+    ap.add_argument("--max-total-seq-tokens", type=int, default=0)
+    ap.add_argument("--total-replicas-override", type=int, default=0)
     ap.add_argument("--verify-quality", action="store_true")
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--notes", default="")
     args = ap.parse_args()
 
     pods = discover_ready_pods()
-    sync_scripts_to_pods(pods)
-
     if args.action == "stop":
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             list(
@@ -275,8 +292,12 @@ def main() -> None:
         print("[orchestrator] Stopped all replicas across 4 hosts.")
         return
 
-    replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // args.tp_size)
-    total_replicas = replicas_per_host * args.num_hosts
+    sync_scripts_to_pods(pods)
+
+    dp_size = args.dp_size if args.dp_size > 0 else (2 if args.tp_size == 1 else 1)
+    cores_per_srv = args.tp_size * dp_size
+    replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // cores_per_srv)
+    total_replicas = args.total_replicas_override if args.total_replicas_override > 0 else (replicas_per_host * dp_size * args.num_hosts)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     deploy_meta_path = RESULTS_DIR / f"{args.run_name}_deploy.json"
@@ -342,6 +363,8 @@ def main() -> None:
             str(args.max_reqs),
             "--fixed-num-requests",
             str(args.fixed_num_requests),
+            "--max-total-seq-tokens",
+            str(args.max_total_seq_tokens),
             "--output",
             remote_out,
             "--gcs-output",

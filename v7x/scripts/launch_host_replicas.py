@@ -33,6 +33,8 @@ UNSET_MULTIHOST_ENVS = [
     "TPU_CHIPS_PER_HOST_BOUNDS",
     "TPU_HOST_BOUNDS",
     "TPU_STDERR_LOG_LEVEL",
+    "JOB_COMPLETION_INDEX",
+    "JOB_COMPLETION_MODE",
 ]
 
 
@@ -58,7 +60,9 @@ def kill_existing_sglang() -> None:
                 "sglang.launch_server",
                 "sglang::scheduler",
                 "sglang::detokenizer",
+                "sglang::data_pa",
                 "sglang.srt",
+                "gateway_flint_v7x",
             )
         ):
             victims.append(pid)
@@ -111,18 +115,28 @@ def parse_log_telemetry(log_path: Path) -> dict:
     for line in text.splitlines():
         if "Flint weights loaded:" in line:
             info["weights_loaded_line"] = line.strip()
-        if "Memory usage" in line or "available_gpu_mem" in line or "KV Cache" in line or "max_total_num_tokens" in line:
+        if "Memory usage" in line or "available_gpu_mem" in line or "KV Cache" in line or "max_total_num_tokens" in line or "SWAKVPool" in line:
             info.setdefault("mem_lines", []).append(line.strip())
         if "swa" in line.lower() and ("token" in line.lower() or "pool" in line.lower() or "size" in line.lower()):
             info.setdefault("swa_lines", []).append(line.strip())
+        m_swakv = re.search(
+            r"SWAKVPool mem usage:\s*([0-9.]+)\s*GB,\s*full size:\s*([0-9.]+)\s*GB\s*\((\d+)\s*tokens\),\s*swa size:\s*([0-9.]+)\s*GB\s*\((\d+)\s*tokens\)",
+            line,
+        )
+        if m_swakv:
+            info["kv_pool_gb_per_core"] = float(m_swakv.group(1))
+            info["full_kv_gb_per_core"] = float(m_swakv.group(2))
+            info["full_kv_tokens"] = int(m_swakv.group(3))
+            info["swa_kv_gb_per_core"] = float(m_swakv.group(4))
+            info["swa_kv_tokens"] = int(m_swakv.group(5))
         m_tok = re.search(r"max_total_num_tokens[=:\s]+(\d+)", line)
         if m_tok:
             info["max_total_num_tokens"] = int(m_tok.group(1))
         m_full = re.search(r"full[_\s]available[_\s](?:size|tokens)[=:\s]+(\d+)", line, re.IGNORECASE)
-        if m_full:
+        if m_full and "full_kv_tokens" not in info:
             info["full_kv_tokens"] = int(m_full.group(1))
         m_swa = re.search(r"swa[_\s]available[_\s](?:size|tokens)[=:\s]+(\d+)", line, re.IGNORECASE)
-        if m_swa:
+        if m_swa and "swa_kv_tokens" not in info:
             info["swa_kv_tokens"] = int(m_swa.group(1))
     return info
 
@@ -151,8 +165,9 @@ def main() -> None:
     ap.add_argument("--tag", default="pass")
     ap.add_argument("--model-path", default="/dev/shm/flint")
     ap.add_argument("--tp-size", type=int, default=2)
+    ap.add_argument("--dp-size", type=int, default=1)
     ap.add_argument("--ep-size", type=int, default=1)
-    ap.add_argument("--num-replicas", type=int, default=0, help="0 = fill all 8 TensorCores (8 // tp_size)")
+    ap.add_argument("--num-replicas", type=int, default=0, help="0 = fill all 8 TensorCores (8 // (tp_size * dp_size))")
     ap.add_argument("--base-port", type=int, default=30000)
     ap.add_argument("--kv-cache-dtype", default="fp8_e4m3", choices=["fp8_e4m3", "bfloat16"])
     ap.add_argument("--attention-backend", default="pallas_tpu_rpa_v3")
@@ -161,12 +176,14 @@ def main() -> None:
     ap.add_argument("--mem-fraction-static", type=float, default=0.85)
     ap.add_argument("--chunked-prefill-size", type=int, default=8192)
     ap.add_argument("--max-prefill-tokens", type=int, default=16384)
-    ap.add_argument("--max-running-requests", type=int, default=128)
+    ap.add_argument("--max-running-requests", type=int, default=64)
+    ap.add_argument("--torch-compile-max-bs", type=int, default=64)
     ap.add_argument("--page-size", type=int, default=64)
     ap.add_argument("--swa-full-tokens-ratio", type=float, default=-1.0, help="<0 uses SGLang default")
+    ap.add_argument("--router-mode", default="fused", choices=["fused", "stock"])
     ap.add_argument("--disable-torch-compile", action="store_true")
     ap.add_argument("--extra-args", default="", help="Space-separated extra CLI args for sglang.launch_server")
-    ap.add_argument("--wait-timeout", type=int, default=600)
+    ap.add_argument("--wait-timeout", type=int, default=1800)
     args = ap.parse_args()
 
     if args.mode == "stop":
@@ -174,8 +191,13 @@ def main() -> None:
         print(json.dumps({"host": os.uname().nodename, "status": "stopped"}))
         return
 
-    num_replicas = args.num_replicas if args.num_replicas > 0 else (8 // args.tp_size)
-    assert num_replicas * args.tp_size <= 8, f"num_replicas={num_replicas} * tp_size={args.tp_size} > 8 TensorCores!"
+    cores_per_srv = args.tp_size * args.dp_size
+    assert cores_per_srv >= 2 and cores_per_srv % 2 == 0, (
+        f"On dual-core TPU v7x chips, tp_size * dp_size must be a multiple of 2 (got tp={args.tp_size}, dp={args.dp_size}). "
+        f"For TP=1, pass --tp-size 1 --dp-size 2 (2 independent TP=1 TensorCore workers per physical v7x chip)."
+    )
+    num_replicas = args.num_replicas if args.num_replicas > 0 else (8 // cores_per_srv)
+    assert num_replicas * cores_per_srv <= 8, f"num_replicas={num_replicas} * cores_per_srv={cores_per_srv} > 8 TensorCores!"
 
     if args.mode == "status":
         statuses = {args.base_port + r: http_health(args.base_port + r) for r in range(num_replicas)}
@@ -184,6 +206,8 @@ def main() -> None:
 
     kill_existing_sglang()
     ensure_mock_metadata()
+    if Path("/workspace/patch_flint_sglang_tpu.py").exists():
+        subprocess.run([sys.executable, "/workspace/patch_flint_sglang_tpu.py"], check=True)
 
     fields = supported_server_arg_fields()
     log_dir = Path("/workspace/logs")
@@ -191,23 +215,31 @@ def main() -> None:
 
     procs: list[tuple[int, int, subprocess.Popen, Path]] = []
     model_short = Path(args.model_path).name
+    dpattn_tag = "_dpattn" if "enable-dp-attention" in args.extra_args else ""
+    swa_tag = f"_swa{args.swa_full_tokens_ratio}" if args.swa_full_tokens_ratio >= 0 else ""
     cache_stem = (
-        f"{model_short}_tp{args.tp_size}_ep{args.ep_size}_{args.kv_cache_dtype}_"
-        f"{args.attention_backend}_ps{args.page_size}_cp{args.chunked_prefill_size}"
+        f"{model_short}_tp{args.tp_size}_dp{args.dp_size}_ep{args.ep_size}{dpattn_tag}{swa_tag}_{args.kv_cache_dtype}_"
+        f"{args.attention_backend}_rm{args.router_mode}_ps{args.page_size}_cp{args.chunked_prefill_size}_bs{args.torch_compile_max_bs}"
     )
+    ind_r0 = Path(f"/dev/shm/ind_{cache_stem}_r0")
 
     for r in range(num_replicas):
-        base_gpu_id = r * args.tp_size
+        base_gpu_id = r * cores_per_srv
         port = args.base_port + r
         nccl_port = 27500 + r * 20
         master_port = 29500 + r * 20
-        slice_addrs = ",".join(f"127.0.0.1:{28500 + r * 20 + k}" for k in range(args.tp_size))
-        metrics_ports = ",".join(str(8440 + r * 8 + k) for k in range(args.tp_size))
+        slice_addrs = ",".join(f"127.0.0.1:{28500 + r * 20 + k}" for k in range(cores_per_srv))
+        metrics_ports = ",".join(str(8440 + r * 8 + k) for k in range(cores_per_srv))
 
         tmp_dir = Path(f"/dev/shm/tmp_rep{r}")
         ind_dir = Path(f"/dev/shm/ind_{cache_stem}_r{r}")
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        ind_dir.mkdir(parents=True, exist_ok=True)
+        if r > 0 and ind_r0.exists() and any(ind_r0.iterdir()) and (not ind_dir.exists() or not any(ind_dir.iterdir())):
+            import shutil
+
+            shutil.copytree(ind_r0, ind_dir, dirs_exist_ok=True)
+        else:
+            ind_dir.mkdir(parents=True, exist_ok=True)
 
         env = os.environ.copy()
         for k in UNSET_MULTIHOST_ENVS:
@@ -217,7 +249,9 @@ def main() -> None:
             env["LD_PRELOAD"] = "/workspace/metadata_hook.so"
         env["GCE_METADATA_HOST"] = "127.0.0.1:80"
         env["GCE_METADATA_IP"] = "127.0.0.1"
+        env["TPU_SKIP_MDS_QUERY"] = "1"
         env["SGLANG_EXTERNAL_MODEL_PACKAGE"] = "flint_sglang"
+        env["FLINT_TPU_ROUTER_MODE"] = args.router_mode
         env["FLASHINFER_USE_CUDA_NORM"] = "1"
         env["SGLANG_TPU_PD_COLOCATED"] = "1"
         env["SGLANG_BASE_TORCHINDUCTOR_CACHE_DIR"] = str(ind_dir)
@@ -243,8 +277,6 @@ def main() -> None:
             "0.0.0.0",
             "--port",
             str(port),
-            "--nccl-port",
-            str(nccl_port),
             "--trust-remote-code",
             "--grammar-backend",
             "flint",
@@ -272,6 +304,14 @@ def main() -> None:
             "--page-size",
             str(args.page_size),
         ]
+        if args.dp_size > 1:
+            cmd.extend(["--dp-size", str(args.dp_size)])
+        else:
+            cmd.extend(["--nccl-port", str(nccl_port)])
+        if "cuda_graph_max_bs" in fields:
+            cmd.extend(["--cuda-graph-max-bs", str(args.torch_compile_max_bs)])
+        if "torch_compile_max_bs" in fields:
+            cmd.extend(["--torch-compile-max-bs", str(args.torch_compile_max_bs)])
         if args.ep_size > 1:
             cmd.extend(["--ep-size", str(args.ep_size)])
         if args.swa_full_tokens_ratio >= 0:

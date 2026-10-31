@@ -35,7 +35,7 @@ class ReplicaGateway:
         self.session: aiohttp.ClientSession | None = None
 
     async def start(self, _app: web.Application) -> None:
-        connector = aiohttp.TCPConnector(limit=0, limit_per_host=0, tcp_nodelay=True, keepalive_timeout=120)
+        connector = aiohttp.TCPConnector(limit=0, limit_per_host=0, keepalive_timeout=120)
         timeout = aiohttp.ClientTimeout(total=1800, connect=30, sock_read=1800)
         self.session = aiohttp.ClientSession(connector=connector, timeout=timeout)
 
@@ -256,7 +256,8 @@ def kill_existing_gateway(port: int) -> None:
         cmd = parts[1]
         if pid in (1, my_pid, ppid):
             continue
-        if "gateway_flint_v7x.py" in cmd and f"--port {port}" in cmd:
+        first_tok = cmd.split()[0]
+        if ("python" in first_tok) and ("gateway_flint_v7x.py" in cmd) and (f"--port {port}" in cmd):
             try:
                 os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
@@ -288,11 +289,11 @@ def main() -> None:
     ap.add_argument("--log-file", default="/workspace/logs/gateway.log")
     args = ap.parse_args()
 
-    kill_existing_gateway(args.port)
     workers = [w.strip() for w in args.workers.split(",") if w.strip()]
     assert workers, "No workers provided"
 
     if args.daemon:
+        kill_existing_gateway(args.port)
         os.makedirs(os.path.dirname(args.log_file), exist_ok=True)
         cmd = [
             sys.executable,

@@ -448,7 +448,7 @@ async def async_main(args: argparse.Namespace) -> None:
     hit_rates = [float(x.strip()) for x in args.hit_rates.split(",") if x.strip()]
     concs = [int(x.strip()) for x in args.concurrencies.split(",") if x.strip()]
 
-    connector = aiohttp.TCPConnector(limit=0, limit_per_host=0, tcp_nodelay=True)
+    connector = aiohttp.TCPConnector(limit=0, limit_per_host=0)
     timeout = aiohttp.ClientTimeout(total=1800, connect=30, sock_read=1800)
 
     async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
