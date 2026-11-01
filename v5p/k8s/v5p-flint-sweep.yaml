@@ -31,7 +31,7 @@ spec:
       terminationGracePeriodSeconds: 10
       restartPolicy: OnFailure
       nodeSelector:
-        cloud.google.com/gke-nodepool: flint-tpu-v5p-spot-4n
+        cloud.google.com/gke-nodepool: tpu-v5p-16-pool
         cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
         cloud.google.com/gke-tpu-topology: 2x2x4
       tolerations:
@@ -43,7 +43,7 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: sglang-bench
-        image: us-central1-docker.pkg.dev/diesel-patrol-382622/vllm/sglang-torchtpu-diffusion:v0.2.0
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/sglang-torchtpu-diffusion:v0.2.0
         imagePullPolicy: IfNotPresent
         command: ["/bin/bash", "-lc"]
         args:
@@ -58,7 +58,7 @@ spec:
               headers={"Metadata-Flavor": "Google"},
           )
           tok = json.loads(urllib.request.urlopen(req, timeout=10).read().decode())["access_token"]
-          bucket = "ank-usc1-bucket-314837540096"
+          bucket = "YOUR_GCS_BUCKET"
           for fn in ("quantize_flint_fp8.py", "patch_flint_sglang_tpu.py", "v5p_mock_metadata.py", "flint_v5p_gateway.py", "bench_flint_v5p.py"):
               obj = urllib.parse.quote(f"flint-serving-scripts/v5p/{fn}", safe="")
               r = urllib.request.Request(
@@ -73,7 +73,7 @@ spec:
           PY
           python3 /workspace/scripts/bench_flint_v5p.py \
             --mode full_sweep \
-            --gcs-bucket ank-usc1-bucket-314837540096 \
+            --gcs-bucket YOUR_GCS_BUCKET \
             --run-id v5p16_sweep_r1
         env:
         - name: POD_IP

@@ -5,7 +5,7 @@ This directory (`v5p/`) contains all serving benchmark scripts, `[128, 128]` Blo
 ## Model & Runtime Summary
 
 - **Model**: `RecursiveSI/flint` (`40B-A2.5B` sparse MoE coding-agent LLM; `39.8B` total / `~2.5B` active params; 49 layers [layers `0–1` dense `intermediate_size=6144`, layers `2–48` MoE with `256` routed experts `top-6` sigmoid routing + ungated shared expert `1024`, `moe_intermediate_size=512`]; GQA `32Q/4KV`, `head_dim=128`, QK-RMSNorm, learned attention sinks `softmax_offset`; `35` sliding-window `513`-token RoPE layers + `14` full-attention NoPE layers; `262,144` max context).
-- **Serving Stack**: `sglang` + `sglang_tpu` (`us-central1-docker.pkg.dev/diesel-patrol-382622/vllm/sglang-torchtpu-diffusion:v0.2.0`, `torch==2.13.0+cpu`, `torch-tpu==0.2.0`, `jax==0.11.2`, `libtpu==0.0.50`) + `flint_sglang==0.1.4` external model/parser plugin (`--grammar-backend flint --reasoning-parser flint --tool-call-parser flint --enable-fp32-lm-head`).
+- **Serving Stack**: `sglang` + `sglang_tpu` (`us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/sglang-torchtpu-diffusion:v0.2.0`, `torch==2.13.0+cpu`, `torch-tpu==0.2.0`, `jax==0.11.2`, `libtpu==0.0.50`) + `flint_sglang==0.1.4` external model/parser plugin (`--grammar-backend flint --reasoning-parser flint --tool-call-parser flint --enable-fp32-lm-head`).
 - **Attention & MoE Kernels on TPU v5p**:
   - Attention: `--attention-backend pallas_tpu_rpa_v3` (ragged paged attention v3 with native sliding-window `513` + `sinks` `softmax_offset` support and `--kv-cache-dtype fp8_e4m3`, `page_size=64`).
   - MoE: Pallas `gmm_v2` grouped matrix multiplication (`fp8_e4m3fn` blockwise `[128, 128]` in FP8 mode, `bfloat16` in BF16 mode).

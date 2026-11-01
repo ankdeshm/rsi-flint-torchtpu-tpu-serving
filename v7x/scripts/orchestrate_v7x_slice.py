@@ -19,8 +19,8 @@ import time
 from pathlib import Path
 
 
-CTX = "--context=gke_diesel-patrol-382622_us-central1_ank-tpu-v5p-usc1"
-LOCAL_DIR = Path("/Users/deshmukhankita/ankita-dev/Atlas Cloud POC/flint_v7x_serving")
+CTX = "--context=gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster"
+LOCAL_DIR = Path("/Users/deshmukhankita/ankita-dev/TPU Benchmark Suite/flint_v7x_serving")
 RESULTS_DIR = LOCAL_DIR / "results"
 SCRIPTS = [
     "mock_metadata.py",
@@ -49,7 +49,11 @@ def discover_ready_pods(wait_timeout: int = 7200) -> list[dict[str, str]]:
     """Wait until all 4 indexed runner pods are Running and have READY_FOR_BENCHMARKS."""
     t0 = time.time()
     while time.time() - t0 < wait_timeout:
-        res = run_kubectl(["get", "pods", "-l", "app=flint-v7x-16-spot-runner", "-o", "json"], check=False, timeout=30)
+        try:
+            res = run_kubectl(["get", "pods", "-l", "app=flint-v7x-16-spot-runner", "-o", "json"], check=False, timeout=45)
+        except subprocess.TimeoutExpired:
+            time.sleep(5)
+            continue
         if res.returncode == 0 and res.stdout.strip():
             data = json.loads(res.stdout)
             by_idx: dict[int, dict[str, str]] = {}
@@ -311,7 +315,7 @@ def main() -> None:
                 "storage",
                 "cp",
                 str(deploy_meta_path),
-                f"gs://ank-usc1-bucket-314837540096/flint-v7x-serving-results/{args.run_name}_deploy.json",
+                f"gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/{args.run_name}_deploy.json",
             ],
             env=k_env(),
             check=False,
@@ -384,7 +388,7 @@ def main() -> None:
                 "storage",
                 "cp",
                 str(local_json),
-                f"gs://ank-usc1-bucket-314837540096/flint-v7x-serving-results/{args.run_name}.json",
+                f"gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/{args.run_name}.json",
             ],
             env=k_env(),
             check=False,

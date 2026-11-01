@@ -94,7 +94,7 @@ class V5pMockMetadataHandler(BaseHTTPRequestHandler):
             "TPU_WORKER_ID": "0",
             "ALT": "false",
             "CHIPS_PER_HOST_BOUNDS": st["chips_per_host_bounds"],
-            "CONSUMER_PROJECT_ID": "tpu-prod-env-one-vm",
+            "CONSUMER_PROJECT_ID": "mock-tpu-project",
             "ENABLE_ICI_RESILIENCY": "false",
             "ENABLE_IMPROVED_REROUTE_ALLREDUCE_STRATEGY": "false",
             "HOST_BOUNDS": st["host_bounds"],
@@ -123,7 +123,7 @@ class V5pMockMetadataHandler(BaseHTTPRequestHandler):
         elif path.endswith("/computeMetadata/v1/instance/attributes/agent-worker-number"):
             response_body = b"0"
         elif path.endswith("/computeMetadata/v1/project/project-id"):
-            response_body = b"tpu-prod-env-one-vm"
+            response_body = b"mock-tpu-project"
         elif path.endswith("/computeMetadata/v1/project/numeric-project-id"):
             response_body = b"1234567890"
         elif path.endswith("/computeMetadata/v1/universe/universe-domain") or path.endswith("/universe-domain"):

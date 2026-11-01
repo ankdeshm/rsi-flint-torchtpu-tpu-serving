@@ -1,11 +1,11 @@
 # RecursiveSI/flint (40B-A2.5B MoE) Cloud TPU v7x-16 TorchTPU Serving Benchmark & Sizing Report
 
 **Platform:** Cloud TPU `v7x-16` (Ironwood — 4 hosts × 4 physical chips = 16 dual-core chips / 32 TensorCores, 2×2×4 3D Torus)  
-**Cluster:** `ank-tpu-v5p-usc1` (`gke_diesel-patrol-382622_us-central1_ank-tpu-v5p-usc1`)  
-**Node Pool:** `ank-tpu-v7x-16-spot` (Job: `flint-v7x-16-spot-runner-0..3`)  
+**Cluster:** `tpu-v5p-cluster` (`gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster`)  
+**Node Pool:** `tpu-v7x-16-pool` (Job: `flint-v7x-16-spot-runner-0..3`)  
 **Model Architecture:** `RecursiveSI/flint` (40B total parameters, 2.5B active per token, 256 routed experts + shared attention, hybrid 64-layer architecture with 80% Sliding Window Attention + 20% Full Attention, 131,072 max context)  
 **Software Stack:** PyTorch 2.6 / TorchTPU / libtpu `20261028` / SGLang TorchTPU Runtime / Pallas TPU RPA Attention (`pallas_tpu_rpa_v3`) / Fused 256-Expert Pallas Router (`patch_flint_router_topk.py`)  
-**Benchmark Artifacts:** `gs://ank-usc1-bucket-314837540096/flint-v7x-serving-results/`  
+**Benchmark Artifacts:** `gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/`  
 
 ---
 
@@ -331,7 +331,7 @@ Comparison between identical 16-chip cluster slices (`v7x-16` vs `v5p-16`):
 
 ## 8. Verification Sign-Off
 
-- **All Results Re-run & Verified:** Verified empirically on GKE cluster `gke_diesel-patrol-382622_us-central1_ank-tpu-v5p-usc1` under node pool `ank-tpu-v7x-16-spot`.
+- **All Results Re-run & Verified:** Verified empirically on GKE cluster `gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster` under node pool `tpu-v7x-16-pool`.
 - **Zero Dollar/Cost Columns:** All tables comply strictly with sizing-only guidelines.
 - **Permanent Cloud Storage Archive:** All raw telemetry and benchmark files saved to:
-  `gs://ank-usc1-bucket-314837540096/flint-v7x-serving-results/`
+  `gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/`

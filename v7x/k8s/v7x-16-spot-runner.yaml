@@ -21,7 +21,7 @@ spec:
   completions: 4
   parallelism: 4
   completionMode: Indexed
-  backoffLimit: 100
+  backoffLimit: 500
   template:
     metadata:
       labels:
@@ -36,7 +36,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       restartPolicy: OnFailure
       nodeSelector:
-        cloud.google.com/gke-nodepool: ank-tpu-v7x-16-spot
+        cloud.google.com/gke-nodepool: tpu-v7x-16-pool
         cloud.google.com/gke-tpu-accelerator: tpu7x
         cloud.google.com/gke-tpu-topology: 2x2x4
       tolerations:
@@ -51,7 +51,7 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: flint-tpu
-        image: us-central1-docker.pkg.dev/diesel-patrol-382622/vllm/sglang-torchtpu-diffusion:v0.2.0
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/sglang-torchtpu-diffusion:v0.2.0
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
@@ -141,4 +141,4 @@ spec:
           type: Directory
       - name: models-gcs
         persistentVolumeClaim:
-          claimName: ank-usc1-models-pvc
+          claimName: tpu-models-gcs-pvc

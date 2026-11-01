@@ -98,7 +98,7 @@ v7x/
 
 ## 5. Comprehensive Benchmark Report
 
-See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERVING_RESULTS.md) (also available on GCS at `gs://ank-usc1-bucket-314837540096/flint-v7x-serving-results/FLINT_V7X_SERVING_RESULTS.md`).
+See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERVING_RESULTS.md) (also available on GCS at `gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/FLINT_V7X_SERVING_RESULTS.md`).
 
 ### Empirical Head-to-Head: TPU v7x-16 vs TPU v5p-16 (Matched 16-Chip Slices)
 
@@ -134,10 +134,10 @@ See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERV
 
 ```bash
 export CLOUDSDK_METRICS_ENVIRONMENT=datacloud.antigravity
-CTX="--context=gke_diesel-patrol-382622_us-central1_ank-tpu-v5p-usc1"
+CTX="--context=gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster"
 
 # 1. Stage scripts to GCS bucket mounted by all pods and deploy the 4-host runner
-gcloud storage cp v7x/scripts/* gs://ank-usc1-bucket-314837540096/flint-v7x-scripts/
+gcloud storage cp v7x/scripts/* gs://YOUR_GCS_BUCKET/flint-v7x-scripts/
 kubectl $CTX apply -f v7x/k8s/v7x-16-spot-runner.yaml
 
 # 2. Deploy Intra-Chip TP=2 x DP=16 (16 replicas across 4 hosts, zero inter-chip ICI) & run matched sweep

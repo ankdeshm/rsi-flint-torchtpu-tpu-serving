@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Comprehensive Flint (`RecursiveSI/flint`, 40B-A2.5B MoE) Serving Benchmark Suite on TPU v5p-16.
 
-Supports two execution modes on GKE Cluster 1's `flint-tpu-v5p-spot-4n` (`4 hosts x 4 v5p chips = 16 chips`):
+Supports two execution modes on GKE Cluster 1's `tpu-v5p-16-pool` (`4 hosts x 4 v5p chips = 16 chips`):
   1. `--mode smoke` (Step 1):
      - Stages `RecursiveSI/flint` BF16 (~79.6 GB) to `/dev/shm/flint`.
      - Converts BF16 -> Block-FP8 `[128, 128]` (~40.4 GB) into `/dev/shm/flint-fp8` and uploads to GCS.
@@ -440,8 +440,8 @@ def build_replica_env(
             "GCE_METADATA_HOST": "127.0.0.1:18080",
             "GCE_METADATA_IP": "127.0.0.1",
             "MOCK_METADATA_PORT": "18080",
-            "GOOGLE_CLOUD_PROJECT": "tpu-prod-env-one-vm",
-            "GCLOUD_PROJECT": "tpu-prod-env-one-vm",
+            "GOOGLE_CLOUD_PROJECT": "mock-tpu-project",
+            "GCLOUD_PROJECT": "mock-tpu-project",
             "SGLANG_EXTERNAL_MODEL_PACKAGE": "flint_sglang",
             "FLINT_TPU_ROUTER_MODE": "fused",
             "FLASHINFER_USE_CUDA_NORM": "1",
@@ -1647,7 +1647,7 @@ def run_full_sweep_mode(idx: int, bucket: str, run_id: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["smoke", "full_sweep"], required=True)
-    ap.add_argument("--gcs-bucket", default="ank-usc1-bucket-314837540096")
+    ap.add_argument("--gcs-bucket", default="YOUR_GCS_BUCKET")
     ap.add_argument("--run-id", required=True)
     args = ap.parse_args()
 
