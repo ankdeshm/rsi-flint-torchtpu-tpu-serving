@@ -90,7 +90,20 @@ def discover_ready_pods(wait_timeout: int = 7200) -> list[dict[str, str]]:
                     return pods
                 print(f"[orchestrator] 4 pods Running ({[p['node'] for p in pods]}), waiting for /dev/shm staging...", flush=True)
             else:
-                print(f"[orchestrator] Waiting for 4 Running pods (currently {len(by_idx)}/4)...", flush=True)
+                non_terminal = [
+                    it
+                    for it in data.get("items", [])
+                    if it.get("status", {}).get("phase") in ("Pending", "Running")
+                ]
+                if not non_terminal and (LOCAL_DIR / "v7x-16-spot-runner.yaml").exists():
+                    print(
+                        "[orchestrator] 0 Pending/Running pods (K8s backoff after Spot preemption) — recreating job/flint-v7x-16-spot-runner...",
+                        flush=True,
+                    )
+                    run_kubectl(["delete", "job", "flint-v7x-16-spot-runner", "--ignore-not-found=true"], check=False, timeout=30)
+                    run_kubectl(["apply", "-f", str(LOCAL_DIR / "v7x-16-spot-runner.yaml")], check=False, timeout=30)
+                else:
+                    print(f"[orchestrator] Waiting for 4 Running pods (currently {len(by_idx)}/4, non_terminal={len(non_terminal)})...", flush=True)
         time.sleep(10)
     raise TimeoutError("Timed out waiting for 4 Ready flint-v7x-16-spot-runner pods")
 
