@@ -202,8 +202,7 @@ def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict
 
     for hr in host_results:
         if hr.get("status") != "ready":
-            print(f"[ERROR] Host {hr.get('pod')} failed startup:\n{json.dumps(hr, indent=2)}", flush=True)
-            sys.exit(1)
+            raise RuntimeError(f"Host {hr.get('pod')} failed startup:\n{json.dumps(hr, indent=2)}")
 
     worker_urls: list[str] = []
     for hr in host_results:
@@ -281,8 +280,8 @@ def main() -> None:
     ap.add_argument("--notes", default="")
     args = ap.parse_args()
 
-    pods = discover_ready_pods()
     if args.action == "stop":
+        pods = discover_ready_pods()
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             list(
                 pool.map(
@@ -296,8 +295,6 @@ def main() -> None:
         print("[orchestrator] Stopped all replicas across 4 hosts.")
         return
 
-    sync_scripts_to_pods(pods)
-
     dp_size = args.dp_size if args.dp_size > 0 else (2 if args.tp_size == 1 else 1)
     cores_per_srv = args.tp_size * dp_size
     replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // cores_per_srv)
@@ -306,94 +303,105 @@ def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     deploy_meta_path = RESULTS_DIR / f"{args.run_name}_deploy.json"
 
-    if args.action in ("deploy", "deploy_and_bench"):
-        deploy_info = launch_cluster(pods, args)
-        deploy_meta_path.write_text(json.dumps(deploy_info, indent=2) + "\n")
-        subprocess.run(
-            [
-                "gcloud",
-                "storage",
-                "cp",
-                str(deploy_meta_path),
-                f"gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/{args.run_name}_deploy.json",
-            ],
-            env=k_env(),
-            check=False,
-        )
+    for attempt in range(1, 25):
+        try:
+            pods = discover_ready_pods()
+            sync_scripts_to_pods(pods)
 
-    if args.action in ("bench", "deploy_and_bench"):
-        pod0 = pods[0]["pod"]
-        remote_out = f"/workspace/results/{args.run_name}.json"
-        gcs_mount_out = f"/models/flint-v7x-serving-results/{args.run_name}.json"
-        bench_cmd = [
-            "kubectl",
-            CTX,
-            "exec",
-            pod0,
-            "-c",
-            "flint-tpu",
-            "--",
-            "python3",
-            "/workspace/bench_flint_v7x.py",
-            "--run-name",
-            args.run_name,
-            "--base-url",
-            "http://127.0.0.1:8000",
-            "--model-name",
-            args.model_path,
-            "--weights-dtype",
-            args.weights_dtype,
-            "--kv-cache-dtype",
-            args.kv_cache_dtype,
-            "--tp-size",
-            str(args.tp_size),
-            "--ep-size",
-            str(args.ep_size),
-            "--num-replicas",
-            str(total_replicas),
-            "--attention-backend",
-            args.attention_backend,
-            "--notes",
-            args.notes,
-            "--shapes",
-            args.shapes,
-            "--hit-rates",
-            args.hit_rates,
-            "--concurrencies",
-            args.concurrencies,
-            "--req-mult",
-            str(args.req_mult),
-            "--max-reqs",
-            str(args.max_reqs),
-            "--fixed-num-requests",
-            str(args.fixed_num_requests),
-            "--max-total-seq-tokens",
-            str(args.max_total_seq_tokens),
-            "--output",
-            remote_out,
-            "--gcs-output",
-            gcs_mount_out,
-        ]
-        if args.verify_quality:
-            bench_cmd.append("--verify-quality")
-        if args.resume:
-            bench_cmd.append("--resume")
+            if args.action in ("deploy", "deploy_and_bench"):
+                deploy_info = launch_cluster(pods, args)
+                deploy_meta_path.write_text(json.dumps(deploy_info, indent=2) + "\n")
+                subprocess.run(
+                    [
+                        "gcloud",
+                        "storage",
+                        "cp",
+                        str(deploy_meta_path),
+                        f"gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/{args.run_name}_deploy.json",
+                    ],
+                    env=k_env(),
+                    check=False,
+                )
 
-        subprocess.run(bench_cmd, env=k_env(), check=True)
-        local_json = RESULTS_DIR / f"{args.run_name}.json"
-        run_kubectl(["cp", f"{pod0}:{remote_out}", str(local_json), "-c", "flint-tpu"], timeout=60)
-        subprocess.run(
-            [
-                "gcloud",
-                "storage",
-                "cp",
-                str(local_json),
-                f"gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/{args.run_name}.json",
-            ],
-            env=k_env(),
-            check=False,
-        )
-        print(f"[orchestrator] Saved {local_json} and uploaded to GCS!", flush=True)
+            if args.action in ("bench", "deploy_and_bench"):
+                pod0 = pods[0]["pod"]
+                remote_out = f"/workspace/results/{args.run_name}.json"
+                gcs_mount_out = f"/models/flint-v7x-serving-results/{args.run_name}.json"
+                bench_cmd = [
+                    "kubectl",
+                    CTX,
+                    "exec",
+                    pod0,
+                    "-c",
+                    "flint-tpu",
+                    "--",
+                    "python3",
+                    "/workspace/bench_flint_v7x.py",
+                    "--run-name",
+                    args.run_name,
+                    "--base-url",
+                    "http://127.0.0.1:8000",
+                    "--model-name",
+                    args.model_path,
+                    "--weights-dtype",
+                    args.weights_dtype,
+                    "--kv-cache-dtype",
+                    args.kv_cache_dtype,
+                    "--tp-size",
+                    str(args.tp_size),
+                    "--ep-size",
+                    str(args.ep_size),
+                    "--num-replicas",
+                    str(total_replicas),
+                    "--attention-backend",
+                    args.attention_backend,
+                    "--notes",
+                    args.notes,
+                    "--shapes",
+                    args.shapes,
+                    "--hit-rates",
+                    args.hit_rates,
+                    "--concurrencies",
+                    args.concurrencies,
+                    "--req-mult",
+                    str(args.req_mult),
+                    "--max-reqs",
+                    str(args.max_reqs),
+                    "--fixed-num-requests",
+                    str(args.fixed_num_requests),
+                    "--max-total-seq-tokens",
+                    str(args.max_total_seq_tokens),
+                    "--output",
+                    remote_out,
+                    "--gcs-output",
+                    gcs_mount_out,
+                ]
+                if args.verify_quality:
+                    bench_cmd.append("--verify-quality")
+                if args.resume or attempt > 1:
+                    bench_cmd.append("--resume")
+
+                subprocess.run(bench_cmd, env=k_env(), check=True)
+                local_json = RESULTS_DIR / f"{args.run_name}.json"
+                run_kubectl(["cp", f"{pod0}:{remote_out}", str(local_json), "-c", "flint-tpu"], timeout=60)
+                subprocess.run(
+                    [
+                        "gcloud",
+                        "storage",
+                        "cp",
+                        str(local_json),
+                        f"gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/{args.run_name}.json",
+                    ],
+                    env=k_env(),
+                    check=False,
+                )
+                print(f"[orchestrator] Saved {local_json} and uploaded to GCS!", flush=True)
+            break
+        except Exception as exc:
+            print(f"[orchestrator] Attempt {attempt}/24 interrupted ({exc}); waiting 15s for Spot recovery...", flush=True)
+            time.sleep(15.0)
+    else:
+        raise RuntimeError("Exhausted all 24 Spot retry attempts")
 
 
 if __name__ == "__main__":
