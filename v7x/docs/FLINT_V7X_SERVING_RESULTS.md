@@ -3,8 +3,8 @@
 **Platform:** Cloud TPU `v7x-16` (Ironwood — 4 hosts × 4 physical chips = 16 dual-core chips / 32 TensorCores, 2×2×4 3D Torus)  
 **Cluster:** `tpu-v5p-cluster` (`gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster`)  
 **Node Pool:** `tpu-v7x-16-pool` (Job: `flint-v7x-16-spot-runner-0..3`)  
-**Model Architecture:** `RecursiveSI/flint` (40B total parameters, 2.5B active per token, 256 routed experts + shared attention, hybrid 64-layer architecture with 80% Sliding Window Attention + 20% Full Attention, 131,072 max context)  
-**Software Stack:** PyTorch 2.6 / TorchTPU / libtpu `20261028` / SGLang TorchTPU Runtime / Pallas TPU RPA Attention (`pallas_tpu_rpa_v3`) / Fused 256-Expert Pallas Router (`patch_flint_router_topk.py`)  
+**Model Architecture:** `RecursiveSI/flint` (39.8B total parameters, 2.52B active per token, `hidden_size=2048`, `vocab_size=150,144`, 49-layer architecture: 2 dense SwiGLU + 47 sparse MoE layers with 256 routed experts [top-6 sigmoid] + 1 shared expert; 35 sliding-window RoPE layers [`W=513`, 71.4%] + 14 full-attention NoPE layers [28.6%] + per-head learned sinks, 262,144 max position embeddings; benchmarked up to 131,072 context)  
+**Software Stack:** PyTorch 2.15 / TorchTPU 0.2.0 GA / libtpu `0.0.50` / SGLang TorchTPU Runtime / Pallas TPU RPA Attention (`pallas_tpu_rpa_v3`) / Fused 256-Expert Pallas Router (`patch_flint_router_topk.py`)  
 **Benchmark Artifacts:** `gs://YOUR_GCS_BUCKET/flint-v7x-serving-results/`  
 
 ---
