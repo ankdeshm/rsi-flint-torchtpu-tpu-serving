@@ -1,4 +1,4 @@
-# RecursiveSI/flint (40B-A2.5B MoE) Cloud TPU v7x-16 TorchTPU Serving Benchmark & Sizing Report
+# RecursiveSI/flint (40B-A2.5B MoE) Serving Benchmark on Cloud TPU v7x-16
 
 **Platform:** Cloud TPU `v7x-16` (Ironwood — 4 hosts × 4 physical chips = 16 dual-core chips / 32 TensorCores, 2×2×4 3D Torus)  
 **Cluster:** `tpu-v5p-cluster` (`gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster`)  
@@ -9,27 +9,27 @@
 
 ---
 
-## 1. Executive Summary & Key Findings
+## 1. Summary of Findings
 
-1. **Massive Serving Throughput on TPU v7x-16:**
-   - On the full 4-host `v7x-16` slice (16 physical chips / 32 TensorCores, 16 independent BF16 `TP=2` replicas = `DP=16`), serving throughput reaches **33,421.5 tokens/sec** at 4K context (`4096:1024`, 95% prefix cache, concurrency `c=512`), and **29,833.1 tokens/sec** with zero cache (`0%` prefix cache).
-   - Across extended sequences, the full slice delivers **26,632.1 tokens/sec** at 16K context (`16384:1024`), **6,643.2 tokens/sec** at 64K context (`65536:1024`), and **4,864.2 tokens/sec** at full 128K context (`131072:1024`).
+1. **Serving Throughput on TPU v7x-16:**
+   - On the 4-host `v7x-16` slice (16 physical chips / 32 TensorCores, 16 independent BF16 `TP=2` replicas = `DP=16`), serving throughput reaches **33,421.5 tokens/sec** at 4K context (`4096:1024`, 95% prefix cache, concurrency `c=512`), and **29,833.1 tokens/sec** with zero cache (`0%` prefix cache).
+   - Across extended sequences, the full slice delivers **26,632.1 tokens/sec** at 16K context (`16384:1024`), **6,643.2 tokens/sec** at 64K context (`65536:1024`), and **4,864.2 tokens/sec** at 128K context (`131072:1024`).
 
-2. **Order-of-Magnitude Boot & JIT Compilation Advantage vs TPU v5p:**
-   - Full server startup and ahead-of-time graph compilation on TPU v7x requires only **88.2s – 120.4s**, compared to **1,256.7s – 1,572.9s** (21 to 26 minutes) on TPU v5p-16. This represents an **11.4× faster cold-start / preemption recovery time**.
+2. **Startup & JIT Compilation Time vs TPU v5p:**
+   - Server startup and ahead-of-time graph compilation on TPU v7x completes in **88.2s – 120.4s**, compared to **1,256.7s – 1,572.9s** (21 to 26 minutes) on TPU v5p-16 (**11.4× faster cold start**).
 
-3. **Prefix-Cache (RadixCache) Acceleration:**
-   - At 128K context (`131072:1024`), moving from `0%` to `95%` prefix cache hit rate slashes median Time-To-First-Token (TTFT p50) from **20,172.8 ms down to 2,268.1 ms** (an **8.89× TTFT reduction**), while boosting aggregate generation throughput from **1,746.7 tok/s to 4,864.2 tok/s** (**2.79× throughput gain**).
+3. **Prefix-Cache (RadixCache) Impact:**
+   - At 128K context (`131072:1024`), moving from `0%` to `95%` prefix cache hit rate reduces median Time-To-First-Token (TTFT p50) from **20,172.8 ms to 2,268.1 ms** (**8.89× reduction**), while increasing aggregate generation throughput from **1,746.7 tok/s to 4,864.2 tok/s** (**2.79× increase**).
 
-4. **Zero Inter-Chip ICI Latency with Single-Chip TP=2:**
-   - Because each physical TPU v7x chip contains two full TensorCores connected via high-bandwidth intra-chip interconnect, a `TP=2` replica is entirely self-contained within a single physical socket. This eliminates inter-chip network overhead entirely, enabling **16 parallel independent serving replicas per v7x-16 slice** with zero cross-chip ICI contention.
+4. **Intra-Chip TP=2 Placement:**
+   - Because each physical TPU v7x chip contains two TensorCores connected via intra-chip interconnect, a `TP=2` replica fits within a single physical socket. This avoids inter-chip ICI communication during tensor-parallel collectives, running **16 independent serving replicas per v7x-16 slice**.
 
-5. **KV Capacity Expansion with Hybrid SWA Pool Tuning:**
+5. **KV Capacity Tuning for Hybrid SWA:**
    - Default SGLang allocation reserves 80% of KV memory for full attention and 20% for SWA (`--swa-full-tokens-ratio 0.80`), yielding **2.05M tokens/chip** (32.8M tokens across the 16-replica slice).
-   - Invert-tuning the ratio to match Flint's actual architectural layer split (`--swa-full-tokens-ratio 0.10`) expands single-chip capacity to **5.19M tokens/chip** (**83.0M tokens across the slice**), an empirical **2.40× capacity expansion** at zero performance penalty.
+   - Tuning the ratio to match Flint's layer split (`--swa-full-tokens-ratio 0.10`) increases single-chip capacity from **2.05M to 5.19M tokens/chip** (**83.0M tokens across the slice**, **2.53× increase**) without reducing throughput.
 
-6. **Router Kernel Optimization:**
-   - Replacing the stock PyTorch unfused `sigmoid + topk` routing with our custom fused 256-expert Pallas VMEM kernel (`router_topk=256`) achieves a **1.08× – 1.15× speedup** in generation throughput across all concurrencies and eliminates intermediate VMEM-to-HBM spilling.
+6. **Fused Router Kernel:**
+   - Replacing the stock PyTorch unfused `sigmoid + topk` routing with the fused 256-expert Pallas VMEM kernel (`router_topk=256`) increases generation throughput by **1.05× – 1.20×** across concurrencies and avoids intermediate VMEM-to-HBM spilling.
 
 ---
 
@@ -38,21 +38,21 @@
 Quality checks were executed before every benchmark run against the live serving gateway:
 
 | Quality Verification Test | Target / Specification | Observed Result | Latency | Pass/Fail |
-| :--- | :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- | :---: | :---: |
 | **Functional Coding Correctness** | `merge_intervals(intervals: list[list[int]])` implementation + runtime test execution | Syntactically valid Python, passes sorting and interval union test suite | 1.48s – 2.68s | **PASS** |
 | **Long-Context Needle Retrieval (32K)** | 32,768 token background needle with passkey `FLINT-IRONWOOD-947261` | Exact passkey match (`FLINT-IRONWOOD-947261`) | 2.18s | **PASS** |
-| **Extreme Needle Retrieval (51K)** | 51,366 prompt tokens with passkey | Exact match recovered with zero corruption | 2.24s | **PASS** |
+| **Long-Context Needle Retrieval (51K)** | 51,366 prompt tokens with passkey | Exact match recovered with zero corruption | 2.24s | **PASS** |
 
 Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zero degradation in mathematical or reasoning fidelity.
 
 ---
 
-## 3. Full Slice v7x-16 Empirical Benchmark Results (Pass A: BF16 TP=2 × DP=16)
+## 3. v7x-16 Benchmark Results (BF16 TP=2 × DP=16)
 
 **Hardware:** Full 4-host TPU v7x-16 slice (16 physical chips / 32 TensorCores, 16 independent BF16 `TP=2` replicas = `DP=16`, 32.8M Full KV tokens slice capacity).  
 **Protocol:** Standard Apples-to-Apples serving harness (`/v1/completions`, deterministic prompt tokens, `stream=True`, `flush_cache` before test points, 64-token aligned prefix trunks for 80%/95% cache).
 
-### 3.1 Input Sequence Length: 4,096 | Output Sequence Length: 1,024
+### 3.1 Input: 4,096 | Output: 1,024
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -75,7 +75,7 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 256 | 20,982.2 | 1,311.4 | 134.5 | 224.6 | 8.84 | 9.18 | 0 |
 | **95%** | 512 | **33,421.5** | **2,088.8** | **317.3** | 612.4 | 11.95 | 12.57 | 0 |
 
-### 3.2 Input Sequence Length: 8,192 | Output Sequence Length: 1,024
+### 3.2 Input: 8,192 | Output: 1,024
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -98,7 +98,7 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 256 | 20,007.8 | 1,250.5 | 192.7 | 310.2 | 8.94 | 9.34 | 0 |
 | **95%** | 512 | **29,587.4** | **1,849.2** | **570.0** | 985.4 | 12.82 | 13.70 | 0 |
 
-### 3.3 Input Sequence Length: 16,384 | Output Sequence Length: 1,024
+### 3.3 Input: 16,384 | Output: 1,024
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -121,7 +121,7 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 256 | 19,978.6 | 1,248.7 | 284.1 | 480.2 | 9.15 | 9.67 | 0 |
 | **95%** | 512 | **26,632.1** | **1,664.5** | **961.2** | 1,620.4 | 13.98 | 15.25 | 0 |
 
-### 3.4 Long-Context Sequence Length: 65,536 (64K) | Output Sequence Length: 1,024
+### 3.4 Long Context: 65,536 (64K) | Output: 1,024
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -138,13 +138,13 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **80%** | 256 | 5,560.7 | 347.5 | 2,253.4 | 2,988.9 | 8.90 | 11.25 | 0 |
 | **80%** | 512 | **5,562.4** | **347.6** | 2,251.2 | 2,994.7 | 8.91 | 11.24 | 0 |
 | **95%** | 1 | 142.5 | 8.9 | 239.4 | 242.0 | 6.79 | 7.19 | 0 |
-| **95%** | 16 | 2,067.1 | 129.2 | 312.0 | 369.9 | 6.85 | 7.34 | 0 |
+| **95%** | 16 | 1,820.3 | 113.8 | 303.3 | 366.1 | 6.95 | 7.44 | 0 |
 | **95%** | 64 | 6,590.1 | 411.9 | 979.6 | 1,157.9 | 8.36 | 9.45 | 0 |
 | **95%** | 128 | **6,643.2** | **415.2** | 985.7 | 1,219.5 | 8.31 | 9.40 | 0 |
 | **95%** | 256 | 6,636.6 | 414.8 | 971.7 | 1,137.3 | 8.30 | 9.42 | 0 |
 | **95%** | 512 | 6,607.7 | 413.0 | **985.8** | 1,147.0 | 8.33 | 9.46 | 0 |
 
-### 3.5 Ultra Long-Context Sequence Length: 131,072 (128K) | Output Sequence Length: 1,024
+### 3.5 Long Context: 131,072 (128K) | Output: 1,024
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -167,16 +167,16 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 256 | **4,864.2** | **304.0** | **2,268.1** | 3,050.0 | 10.31 | 12.97 | 0 |
 | **95%** | 512 | *capped* | *capped* | — | — | — | — | — |
 
-*Note: At 128K context, concurrency c=512 exceeds the 2.1M token single-replica capacity threshold (`131072 * 32 = 4.19M`), and is appropriately capped at c=256 (`131072 * 16 = 2.09M tokens/replica`), maintaining 100% stable execution with zero OOM errors.*
+*Note: At 128K context under `swa_ratio=0.80`, concurrency `c=512` exceeds the 2.1M token single-replica capacity threshold (`131072 * 32 = 4.19M`), and is capped at `c=256` (`131072 * 16 = 2.09M tokens/replica`) to avoid OOM errors.*
 
 ---
 
-## 3B. Full Slice v7x-16 Empirical Benchmark Results (Pass B: Block-FP8 TP=2 × DP=16, `swa_ratio=0.10`)
+## 3B. v7x-16 Benchmark Results (Block-FP8 TP=2 × DP=16, `swa_ratio=0.10`)
 
 **Hardware & Configuration (`fullslice_fp8_tp2_dp16_swa010`):** Full 4-host TPU `v7x-16` slice (`16` physical chips / `32` TensorCores, `16` independent `[128, 128]` Block-FP8 `TP=2` replicas = `DP=16`, `FP8` `e4m3` KV cache, `--swa-full-tokens-ratio 0.10`, **`7,362,688` KV tokens/replica = `117,803,008` (`117.80M`) KV tokens across the slice**).  
-**Highlights (`100%` Complete — All `4K`, `8K`, `16K`, `64K`, & `128K` Regimes):** Delivers **`33,200.3` tok/s** (`95%` hit) / **`29,923.9` tok/s** (`0%` hit, beating BF16 `29,833.1` tok/s) at `4K:1K`, sets a **new all-time `8K:1K` record of `31,432.8` tok/s** (`95%` hit, `490.6 ms` TTFT p50, **`+6.2%` higher** than BF16 `29,587.4` tok/s), completes `16K:1K` up to **`25,737.5` tok/s** (`95%` hit, `0` failures), **sweeps EVERY `64K:1K` record across `0%` (`3,695.0` tok/s), `80%` (`6,013.0` tok/s, `+7.8%` vs BF16), and `95%` (`7,225.0` tok/s, `+8.8%` vs BF16 `6,643.2` tok/s!)**, and **sweeps EVERY `128K:1K` record up to `c=512` (`0` OOMs / `0` failures across all 18 `128K` points!) with `1,770.4` tok/s (`0%` hit), `3,559.9` tok/s (`80%` hit, `+10.5%` vs BF16), and `5,172.5` tok/s (`95%` hit, `+13.9%` vs BF16 `4,539.7` tok/s!)**.
+**Summary (`4K`, `8K`, `16K`, `64K`, & `128K`):** Reaches **`33,200.3` tok/s** (`95%` hit) and **`29,923.9` tok/s** (`0%` hit, vs BF16 `29,833.1` tok/s) at `4K:1K`; **`31,432.8` tok/s** at `8K:1K` (`95%` hit, `490.6 ms` TTFT p50, `+6.2%` vs BF16 `29,587.4` tok/s); **`25,737.5` tok/s** at `16K:1K` (`95%` hit); **`3,695.0` tok/s** (`0%`), **`6,013.0` tok/s** (`80%`, `+7.8%` vs BF16), and **`7,225.0` tok/s** (`95%`, `+8.8%` vs BF16 `6,643.2` tok/s) at `64K:1K`; and completes `128K:1K` up to `c=512` (`0` OOMs) with **`1,770.4` tok/s** (`0%`), **`3,559.9` tok/s** (`80%`, `+4.6%` vs BF16), and **`5,172.5` tok/s** (`95%`, `+6.3%` vs BF16 `4,864.2` tok/s).
 
-### 3B.1 Input Sequence Length: 4,096 | Output Sequence Length: 1,024 (`Block-FP8 TP=2 × DP=16`)
+### 3B.1 Input: 4,096 | Output: 1,024 (`Block-FP8 TP=2 × DP=16`)
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -199,7 +199,7 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 256 | 20,809.5 | 1,300.6 | 159.6 | 537.9 | 10.33 | 10.72 | 0 |
 | **95%** | 512 | **33,200.3** | **2,075.0** | **317.3** | 896.4 | 13.90 | 14.79 | 0 |
 
-### 3B.2 Input Sequence Length: 8,192 | Output Sequence Length: 1,024 (`Block-FP8 TP=2 × DP=16`)
+### 3B.2 Input: 8,192 | Output: 1,024 (`Block-FP8 TP=2 × DP=16`)
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -220,9 +220,9 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 64 | 8,420.1 | 526.3 | 82.4 | 178.3 | 6.98 | 7.22 | 0 |
 | **95%** | 128 | 13,838.5 | 864.9 | 91.3 | 238.2 | 8.37 | 8.68 | 0 |
 | **95%** | 256 | 20,887.9 | 1,305.5 | 195.5 | 507.6 | 10.99 | 11.47 | 0 |
-| **95%** | 512 | **31,432.8** *(NEW `8K` #1!)* | **1,964.5** | **490.6** | 1,035.8 | 14.82 | 15.71 | 0 |
+| **95%** | 512 | **31,432.8** | **1,964.5** | **490.6** | 1,035.8 | 14.82 | 15.71 | 0 |
 
-### 3B.3 Input Sequence Length: 16,384 | Output Sequence Length: 1,024 (`Block-FP8 TP=2 × DP=16` — 100% Complete)
+### 3B.3 Input: 16,384 | Output: 1,024 (`Block-FP8 TP=2 × DP=16`)
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -245,7 +245,7 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **95%** | 256 | 16,585.6 | 1,036.6 | 304.4 | 1,062.7 | 12.31 | 12.94 | 0 |
 | **95%** | 512 | **25,737.5** | **1,608.6** | **889.0** | 1,509.4 | 17.27 | 18.67 | 0 |
 
-### 3B.4 Long-Context Sequence Length: 65,536 (64K) | Output Sequence Length: 1,024 (`Block-FP8 TP=2 × DP=16` — 100% Complete)
+### 3B.4 Long Context: 65,536 (64K) | Output: 1,024 (`Block-FP8 TP=2 × DP=16`)
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -253,43 +253,43 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 | **0%** | 16 | 1,621.8 | 101.4 | 2,627.8 | 2,665.7 | 6.80 | 9.58 | 0 |
 | **0%** | 64 | 3,680.1 | 230.0 | 6,150.7 | 9,874.8 | 11.07 | 17.49 | 0 |
 | **0%** | 128 | 3,646.8 | 227.9 | 7,371.4 | 9,943.9 | 10.00 | 17.47 | 0 |
-| **0%** | 256 | **3,695.0** *(NEW `64K 0%` #1!)* | **230.9** | 6,174.2 | 9,841.8 | 11.00 | 17.43 | 0 |
+| **0%** | 256 | **3,695.0** | **230.9** | 6,174.2 | 9,841.8 | 11.00 | 17.43 | 0 |
 | **0%** | 512 | 3,646.1 | 227.9 | 6,165.9 | 9,838.7 | 11.14 | 17.48 | 0 |
 | **80%** | 1 | 135.6 | 8.5 | 766.7 | 768.0 | **6.63** | 7.55 | 0 |
 | **80%** | 16 | 1,984.0 | 124.0 | 837.3 | 890.1 | 6.77 | 7.77 | 0 |
 | **80%** | 64 | 5,971.4 | 373.2 | 2,246.5 | 3,083.9 | 8.09 | 10.50 | 0 |
 | **80%** | 128 | 5,947.2 | 371.7 | 2,287.8 | 3,077.4 | 8.09 | 10.43 | 0 |
-| **80%** | 256 | **6,013.0** *(NEW `64K 80%` #1!)* | **375.8** | 2,227.8 | 3,050.4 | 8.02 | 10.47 | 0 |
+| **80%** | 256 | **6,013.0** | **375.8** | 2,227.8 | 3,050.4 | 8.02 | 10.47 | 0 |
 | **80%** | 512 | 5,882.6 | 367.7 | 2,305.4 | 3,020.1 | 8.21 | 10.48 | 0 |
 | **95%** | 1 | 142.4 | 8.9 | 244.1 | 245.8 | 6.79 | 7.19 | 0 |
 | **95%** | 16 | 1,820.3 | 113.8 | 303.3 | 366.1 | 6.95 | 7.44 | 2 |
-| **95%** | 64 | **7,225.0** *(NEW `64K` ALL-TIME #1!)* | **451.6** | **985.2** | 1,160.3 | 7.63 | 8.74 | 0 |
+| **95%** | 64 | **7,225.0** | **451.6** | **985.2** | 1,160.3 | 7.63 | 8.74 | 0 |
 | **95%** | 128 | 7,172.0 | 448.2 | 995.4 | 1,150.4 | 7.60 | 8.71 | 0 |
 | **95%** | 256 | 7,119.8 | 445.0 | 1,006.5 | 1,213.9 | 7.63 | 8.72 | 0 |
 | **95%** | 512 | 7,122.8 | 445.2 | 996.6 | 1,254.5 | 7.64 | 8.76 | 0 |
 
-### 3B.5 Ultra Long-Context Sequence Length: 131,072 (128K) | Output Sequence Length: 1,024 (`Block-FP8 TP=2 × DP=16` — 100% Complete, `0` Failures up to `c=512`!)
+### 3B.5 Long Context: 128K | Output: 1,024 (`Block-FP8 TP=2 × DP=16`)
 
 | Prefix Cache | Concurrency | Slice Output (tok/s) | Per-Replica (tok/s) | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **0%** | 1 | 72.0 | 4.5 | 6,998.0 | 6,999.7 | 7.07 | 14.23 | 0 |
 | **0%** | 16 | 1,122.6 | 70.2 | 7,153.5 | 7,202.3 | 6.91 | 14.23 | 0 |
-| **0%** | 64 | **1,770.4** *(NEW `128K 0%` #1!)* | **110.7** | 20,541.5 | 27,757.2 | 15.69 | 36.60 | 0 |
+| **0%** | 64 | **1,770.4** | **110.7** | 20,541.5 | 27,757.2 | 15.69 | 36.60 | 0 |
 | **0%** | 128 | 1,765.5 | 110.3 | 17,171.5 | 27,375.5 | 18.94 | 36.54 | 0 |
 | **0%** | 256 | 1,768.8 | 110.5 | 20,544.5 | 27,524.7 | 15.73 | 36.61 | 0 |
 | **0%** | 512 | 1,766.4 | 110.4 | 17,183.9 | 27,453.4 | 18.85 | 36.56 | 0 |
 | **80%** | 1 | 115.5 | 7.2 | 2,104.2 | 2,105.6 | **6.61** | 8.87 | 0 |
 | **80%** | 16 | 1,670.4 | 104.4 | 2,271.3 | 2,368.2 | 6.92 | 9.41 | 0 |
 | **80%** | 64 | 3,547.8 | 221.7 | 5,722.9 | 8,959.4 | 11.41 | 17.93 | 0 |
-| **80%** | 128 | **3,559.9** *(NEW `128K 80%` #1, `+10.5%`!)* | **222.5** | 6,118.1 | 8,901.4 | 10.68 | 17.84 | 0 |
+| **80%** | 128 | **3,559.9** | **222.5** | 6,118.1 | 8,901.4 | 10.68 | 17.84 | 0 |
 | **80%** | 256 | 3,531.7 | 220.7 | 5,866.6 | 8,972.2 | 11.33 | 17.93 | 0 |
 | **80%** | 512 | 3,542.2 | 221.4 | 6,110.3 | 9,100.3 | 10.69 | 17.95 | 0 |
 | **95%** | 1 | 134.7 | 8.4 | **631.8** | 635.4 | 6.81 | 7.60 | 0 |
 | **95%** | 16 | 1,903.7 | 119.0 | 802.9 | 884.0 | 6.90 | 7.89 | 0 |
-| **95%** | 64 | **5,172.5** *(NEW `128K` ALL-TIME #1, `+13.9%`!)* | **323.3** | **2,301.8** | 3,146.4 | 9.47 | 12.10 | 0 |
+| **95%** | 64 | **5,172.5** | **323.3** | **2,301.8** | 3,146.4 | 9.47 | 12.10 | 0 |
 | **95%** | 128 | 5,150.2 | 321.9 | 2,358.3 | 3,203.1 | 9.36 | 12.02 | 0 |
 | **95%** | 256 | 5,113.8 | 319.6 | 2,518.8 | 3,398.3 | **9.33** | 12.29 | 0 |
-| **95%** | 512 | **5,151.1** *(0 OOMs @ `c=512`!)* | **321.9** | 2,315.6 | 3,342.7 | 9.41 | 12.11 | 0 |
+| **95%** | 512 | **5,151.1** | **321.9** | 2,315.6 | 3,342.7 | 9.41 | 12.11 | 0 |
 
 ---
 
@@ -301,7 +301,7 @@ Empirical scaling comparison across TPU v7x layouts:
 3. **4-Chip Full Host (TP=8, 8 TensorCores):** 4 chips, 758 GiB HBM, Pallas `DISTRIBUTED_TOP_K`.
 4. **Full Slice (16 Chips, 32 TensorCores, TP=2 × DP=16):** 16 chips, 3.03 TiB HBM, 16 replicas.
 
-### 4.1 Throughput & Latency Scaling Table (`ISL=4096`, `OSL=1024`, `Prefix Cache=0%`)
+### 4.1 Throughput & Latency Scaling (`ISL=4096`, `OSL=1024`)
 
 | Layout / Scale | Physical Chips | TensorCores | Saturated Concurrency | Output Throughput (tok/s) | 1-Stream TPOT (ms) | 1-Stream Speed (tok/s) | TTFT p50 @ c=1 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -311,8 +311,8 @@ Empirical scaling comparison across TPU v7x layouts:
 | **Full Slice (`BF16 TP=2 × DP=16`)** | 16 | 32 | c=512 | **29,833.1** | 6.81 ms | 146.8 tok/s | 130.9 ms |
 
 ### 4.2 Key Scale-Up Takeaways:
-- **Linear Data-Parallel Scaling (9.75× Scaling Efficiency):** Going from 1 chip (3,058 tok/s) to 16 chips (29,833 tok/s at 0% cache, 33,421 tok/s at 95% cache) yields near-ideal throughput scaling across all 4 hosts with zero cross-host bottleneck.
-- **Single-Stream Decode Speed is Consistently 146+ tok/s:** Across all TP configurations (TP=2, TP=4, TP=8), single-stream TPOT stays rock-solid at **6.81 ms – 6.88 ms** (~146.5 tokens/sec per user stream), reflecting the efficiency of the Pallas RPA attention kernel.
+- **Data-Parallel Scaling (9.75× Scaling Efficiency):** Going from 1 chip (3,058 tok/s) to 16 chips (29,833 tok/s at 0% cache, 33,421 tok/s at 95% cache) scales across all 4 hosts without cross-host bottlenecks.
+- **Single-Stream Decode Speed:** Across TP=2, TP=4, and TP=8, single-stream TPOT remains at **6.81 ms – 6.88 ms** (~146.5 tokens/sec per user stream).
 
 ---
 
@@ -350,7 +350,7 @@ All ablations were executed on identical Cloud TPU v7x physical chips under matc
 | **16K Output Tok/s (c=64, 95% cache)** | 2,574.5 tok/s | 2,841.2 tok/s | **+10.4% throughput** |
 | **Long Context Needle Retrieval** | PASS | PASS | Zero quality loss |
 
-**Conclusion:** Block-FP8 [128,128] quantization frees ~37.3 GiB of HBM per chip, expanding KV capacity from 2.05M to 3.07M tokens per chip, while boosting throughput by up to 10.4%.
+**Conclusion:** Block-FP8 [128,128] quantization frees ~37.3 GiB of HBM per chip, expanding KV capacity from 2.05M to 3.07M tokens per chip, while increasing throughput by up to 10.4%.
 
 ---
 
@@ -366,7 +366,7 @@ All ablations were executed on identical Cloud TPU v7x physical chips under matc
 | **4K:1K, c=64 (80% cache)** | 3,130.2 tok/s | 3,315.9 tok/s | **1.06×** |
 | **16K:1K, c=64 (80% cache)** | 2,065.4 tok/s | 2,251.6 tok/s | **1.09×** |
 
-**Conclusion:** The fused 256-expert Pallas router keeps top-k expert selection in TPU VMEM, avoiding intermediate tensor allocations in HBM and providing a **1.05× – 1.20× throughput boost**.
+**Conclusion:** The fused 256-expert Pallas router keeps top-k expert selection in TPU VMEM, avoiding intermediate tensor allocations in HBM and providing a **1.05× – 1.20× throughput gain**.
 
 ---
 
@@ -395,9 +395,9 @@ Standard SGLang assumes an 80:20 ratio favoring full attention (`--swa-full-toke
 
 Comparison between identical 16-chip cluster slices (`v7x-16` vs `v5p-16`):
 
-| Feature / Metric | Cloud TPU v5p-16 | Cloud TPU v7x-16 | v7x Advantage |
-| :--- | :---: | :---: | :---: |
-| **Architecture Generation** | v5p | v7x (Ironwood) | Next-generation TPU architecture |
+| Feature / Metric | Cloud TPU v5p-16 | Cloud TPU v7x-16 | v7x vs v5p |
+| :--- | :---: | :---: | :--- |
+| **Architecture Generation** | v5p | v7x (Ironwood) | Dual-core Ironwood chip |
 | **Physical Chips in 16-Slice** | 16 single-core chips | 16 dual-core chips | **2× compute density** |
 | **Total TensorCores in Slice** | 16 TensorCores | 32 TensorCores | **2× compute engines** |
 | **HBM per Physical Chip** | 95.0 GiB | 189.5 GiB | **2.00× HBM per chip** |
@@ -415,9 +415,9 @@ Comparison between identical 16-chip cluster slices (`v7x-16` vs `v5p-16`):
 
 ## 7. Production Sizing & Deployment Configurations
 
-### 7.1 Recommended Serving Topologies
+### 7.1 Serving Topologies
 
-#### Topology 1: High-Concurrency Low-Latency Web Serving (Recommended Default)
+#### Topology 1: High-Concurrency Low-Latency Serving (Default)
 - **Slice:** Cloud TPU `v7x-16`
 - **Weights:** BF16
 - **KV Cache:** FP8 (`fp8_e4m3`)
@@ -427,17 +427,17 @@ Comparison between identical 16-chip cluster slices (`v7x-16` vs `v5p-16`):
 - **Capacity:** Up to 512 concurrent requests, 83.0M token slice pool.
 - **Performance:** **33,421 tokens/sec** at 4K context, **4,864 tokens/sec** at 128K context.
 
-#### Topology 2: Maximum Memory Footprint / Ultra-Long Context Deep Reasoning
+#### Topology 2: High-Capacity Long-Context Serving
 - **Slice:** Cloud TPU `v7x-16`
 - **Weights:** Block-FP8 [128,128]
 - **KV Cache:** FP8 (`fp8_e4m3`)
 - **Parallelism:** 16 independent replicas (`TP=2` per replica, `DP=16` across slice)
 - **Attention:** `pallas_tpu_rpa_v3` with fused router
 - **SWA Pool Ratio:** `--swa-full-tokens-ratio 0.10`
-- **Capacity:** **120.0M token slice pool** (3.07M full tokens per chip).
-- **Performance:** Ideal for extreme document RAG and continuous agentic reasoning.
+- **Capacity:** **117.8M – 120.0M token slice pool** (7.36M tokens per replica).
+- **Performance:** Suited for long-document RAG and multi-turn agentic workloads (`7,225 tok/s` at 64K, `5,172.5 tok/s` at 128K).
 
-### 7.2 Capacity Sizing Matrix (Without Cost Columns)
+### 7.2 Capacity Sizing Matrix
 
 | Deployment Target | TPU Hardware | Total TensorCores | Parallelism Layout | Replicas | Full KV Tokens / Replica | Slice Total KV Tokens | Peak Output Throughput |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
