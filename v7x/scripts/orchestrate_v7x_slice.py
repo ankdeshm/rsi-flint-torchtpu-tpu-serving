@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 CTX = "--context=gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster"
-LOCAL_DIR = Path("/Users/deshmukhankita/ankita-dev/TPU Benchmark Suite/flint_v7x_serving")
+LOCAL_DIR = Path(". Benchmark Suite/flint_v7x_serving")
 RESULTS_DIR = LOCAL_DIR / "results"
 SCRIPTS = [
     "mock_metadata.py",

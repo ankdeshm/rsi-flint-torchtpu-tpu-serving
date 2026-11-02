@@ -82,7 +82,8 @@ v7x/
 ├── docs/
 │   └── FLINT_V7X_SERVING_RESULTS.md  # Comprehensive empirical serving & optimization report
 └── results/                          # Complete empirical benchmark JSON runs (16 files, 532+ points)
-    ├── fullslice_bf16_tp2_dp16.json  # Full 16-replica 4-host slice sweep (87 points)
+    ├── fullslice_bf16_tp2_dp16.json  # Full 16-replica 4-host BF16 slice sweep (33,421.5 tok/s peak)
+    ├── fullslice_fp8_tp2_dp16_swa010.json # Full 16-replica Block-FP8 swa=0.10 slice sweep (#1 8K/64K/128K!)
     ├── smoke_fp8_dpattn_1chip.json   # Block-FP8 attn_tp=1 x DP=2 benchmark (75 points)
     ├── smoke_bf16_tp8_1rep.json      # Inter-host TP=8 1-replica benchmark (96 points)
     ├── smoke_bf16_tp4_1rep.json      # TP=4 1-replica benchmark (45 points)
