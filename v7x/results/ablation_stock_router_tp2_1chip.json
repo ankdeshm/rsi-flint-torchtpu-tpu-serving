@@ -1,6 +1,6 @@
 {
   "run_name": "ablation_stock_router_tp2_1chip",
-  "hardware": "TPU v7x-16 (Ironwood, 4 hosts x 4 chips = 16 chips / 32 TensorCores, 2x2x4)",
+  "hardware": "TPU v7x-16 ( 4 hosts x 4 chips = 16 chips / 32 TensorCores, 2x2x4)",
   "config": {
     "model_name": "/dev/shm/flint",
     "weights_dtype": "bf16",

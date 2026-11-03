@@ -1,6 +1,6 @@
 {
   "run_name": "smoke_bf16_tp4_1rep",
-  "hardware": "TPU v7x-16 (Ironwood, 4 hosts x 4 chips = 16 chips / 32 TensorCores, 2x2x4)",
+  "hardware": "TPU v7x-16 ( 4 hosts x 4 chips = 16 chips / 32 TensorCores, 2x2x4)",
   "config": {
     "model_name": "/dev/shm/flint",
     "weights_dtype": "bf16",
@@ -22,11 +22,11 @@
     },
     "long_context_32k_needle": {
       "needle_passed": true,
-      "expected_passkey": "FLINT-IRONWOOD-947261",
+      "expected_passkey": "FLINT-TPUV7X-947261",
       "prompt_tokens": 51366,
       "completion_tokens": 76,
       "latency_s": 2.184,
-      "response_preview": "FLINT-IRONWOOD-947261"
+      "response_preview": "FLINT-TPUV7X-947261"
     }
   },
   "points": [

@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: flint-v7x16-vllm-svc
+  namespace: default
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    job-name: flint-v7x16-vllm-opt
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flint-v7x16-vllm-opt
+  namespace: default
+spec:
+  completions: 4
+  parallelism: 4
+  completionMode: Indexed
+  backoffLimit: 4
+  template:
+    metadata:
+      labels:
+        app: flint-v7x16-vllm-opt
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+        gke-gcsfuse/cpu-limit: "0"
+        gke-gcsfuse/ephemeral-storage-limit: "0"
+        gke-gcsfuse/memory-limit: "0"
+        gke-gcsfuse/volumes: "true"
+    spec:
+      serviceAccountName: default
+      subdomain: flint-v7x16-vllm-svc
+      terminationGracePeriodSeconds: 10
+      restartPolicy: OnFailure
+      nodeSelector:
+        cloud.google.com/gke-nodepool: tpu-v7x-16-pool
+        cloud.google.com/gke-tpu-accelerator: tpu7x
+        cloud.google.com/gke-tpu-topology: 2x2x4
+      tolerations:
+      - key: "google.com/tpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "cloud.google.com/gke-spot"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "cloud.google.com/gke-queued"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: runner
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/vllm-torchtpu-bench:v0.32.0
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash", "-lc"]
+        args:
+        - |
+          set -euo pipefail
+          ulimit -c 0 || true
+          mkdir -p /workspace/flint_opt
+          cp /scripts/install_flint_vllm.py /workspace/flint_opt/install_flint_vllm.py
+          cp /scripts/run_flint_vllm_multihost_suite.py /workspace/flint_opt/run_flint_vllm_multihost_suite.py
+          exec python3 /workspace/flint_opt/run_flint_vllm_multihost_suite.py \
+            --hw=v7x-16 \
+            --gcs-bucket=YOUR_GCS_BUCKET \
+            --run-id=ep32_r1 \
+            --head-fqdn=flint-v7x16-vllm-opt-0.flint-v7x16-vllm-svc.default.svc.cluster.local
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: PJRT_DEVICE
+          value: "TPU"
+        - name: HUGGING_FACE_HUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-token
+              key: HF_TOKEN
+              optional: true
+        resources:
+          requests:
+            google.com/tpu: "4"
+          limits:
+            google.com/tpu: "4"
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+        - name: ramtmp
+          mountPath: /tmp
+        - name: models-gcs
+          mountPath: /models
+        - name: opt-scripts
+          mountPath: /scripts
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 300Gi
+      - name: ramtmp
+        emptyDir:
+          medium: Memory
+      - name: models-gcs
+        persistentVolumeClaim:
+          claimName: tpu-models-gcs-pvc
+      - name: opt-scripts
+        configMap:
+          name: flint-vllm-opt-scripts

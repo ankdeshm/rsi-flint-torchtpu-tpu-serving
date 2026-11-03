@@ -191,9 +191,10 @@ def main() -> None:
         print(json.dumps({"host": os.uname().nodename, "status": "stopped"}))
         return
 
-    cores_per_srv = args.tp_size * args.dp_size
+    dp_attn = "enable-dp-attention" in args.extra_args
+    cores_per_srv = args.tp_size if dp_attn else (args.tp_size * args.dp_size)
     assert cores_per_srv >= 2 and cores_per_srv % 2 == 0, (
-        f"On dual-core TPU v7x chips, tp_size * dp_size must be a multiple of 2 (got tp={args.tp_size}, dp={args.dp_size}). "
+        f"On dual-core TPU v7x chips, cores_per_srv must be a multiple of 2 (got tp={args.tp_size}, dp={args.dp_size}, dp_attn={dp_attn}). "
         f"For TP=1, pass --tp-size 1 --dp-size 2 (2 independent TP=1 TensorCore workers per physical v7x chip)."
     )
     num_replicas = args.num_replicas if args.num_replicas > 0 else (8 // cores_per_srv)

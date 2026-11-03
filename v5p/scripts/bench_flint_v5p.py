@@ -1020,7 +1020,7 @@ def run_benchmark_point(
     # Pre-warm prefix trunks on the exact target replicas for 80% / 95% multi-turn cache hits.
     # IMPORTANT (Hybrid 35x SWA-513 + 14x Full Attention): pre-warm ONLY trunk_tokens (osl=1)
     # without a >513-token pad_tail, otherwise SWARadixCache slides/evicts the SWA KV window
-    # past shared_len and triggers prefill_swa_miss_tokens_total recomputation on wave 1!
+    # past shared_len and triggers prefill_swa_miss_tokens_total recomputation on the initial batch!
     if hit_rate > 0.0 and trunks:
         prewarm_jobs: list[tuple[str, list[int]]] = []
         n_b = len(backend_urls)
@@ -1644,9 +1644,164 @@ def run_full_sweep_mode(idx: int, bucket: str, run_id: str) -> None:
     log(idx, "ALL Phase A + Phase B benchmarks COMPLETE!")
 
 
+def run_slice16_high_conc_mode(idx: int, bucket: str, run_id: str) -> None:
+    """Dedicated 4-Host 16-Chip (`v5p-16`) High-Concurrency Empirical Sweep (`swa_full_tokens_ratio=0.10`)."""
+    bf16_dir, fp8_dir = bootstrap_pod(idx, bucket, need_bf16=True, need_fp8=True)
+    local_jsonl = Path(f"/dev/shm/results/{run_id}_slice16_pod{idx}.jsonl")
+    gcs_jsonl = f"flint-serving-results/raw/{run_id}_slice16_pod{idx}.jsonl"
+
+    host_ip = os.environ.get("POD_IP") or socket.gethostbyname(socket.gethostname())
+    node_reg = {"idx": idx, "ip": host_ip, "ts": utc_now()}
+    gcs_upload_bytes(bucket, f"flint-serving-results/coord/{run_id}/node_{idx}.json", json.dumps(node_reg).encode())
+
+    t_bar = time.time()
+    while time.time() - t_bar < 3600:
+        if sum(1 for i in range(4) if gcs_download_bytes(bucket, f"flint-serving-results/coord/{run_id}/node_{i}.json") is not None) == 4:
+            break
+        time.sleep(3)
+
+    nodes = {
+        i: json.loads(gcs_download_bytes(bucket, f"flint-serving-results/coord/{run_id}/node_{i}.json").decode())
+        for i in range(4)
+    }
+
+    slice_configs = [
+        (
+            "slice16_bf16_tp2_dp8_mrr96_swa010",
+            bf16_dir,
+            "bf16",
+            2,
+            2,
+            0.85,
+            96,
+            ["--swa-full-tokens-ratio", "0.10", "--torch-compile-max-bs", "96"],
+        ),
+        (
+            "slice16_fp8_tp1_dp16_mrr64_swa010",
+            fp8_dir,
+            "fp8",
+            1,
+            4,
+            0.84,
+            64,
+            ["--swa-full-tokens-ratio", "0.10", "--torch-compile-max-bs", "64"],
+        ),
+    ]
+
+    for stag, smdir, sprec, stp, srph, smem, smrr, sextra in slice_configs:
+        handle = launch_host_servers(
+            idx,
+            config_tag=stag,
+            model_path=smdir,
+            precision=sprec,
+            tp_size=stp,
+            replicas_per_host=srph,
+            mem_fraction_static=smem,
+            max_running_requests=smrr,
+            chunked_prefill_size=8192,
+            context_length=135168,
+            extra_args=sextra,
+        )
+        local_ports = [int(u.rsplit(":", 1)[-1]) for u in handle.backend_urls]
+        ready_payload = json.dumps({"ok": True, "ip": host_ip, "ports": local_ports}).encode("utf-8")
+        gcs_upload_bytes(bucket, f"flint-serving-results/coord/{run_id}/{stag}_ready_{idx}.json", ready_payload)
+        ready_infos: dict[int, dict[str, Any]] = {}
+        while len(ready_infos) < 4:
+            for i in range(4):
+                if i not in ready_infos:
+                    b_raw = gcs_download_bytes(bucket, f"flint-serving-results/coord/{run_id}/{stag}_ready_{i}.json")
+                    if b_raw is not None:
+                        ready_infos[i] = json.loads(b_raw.decode("utf-8"))
+            if len(ready_infos) < 4:
+                time.sleep(3)
+
+        if idx == 0:
+            all_16chip_backends = [
+                f"http://{ready_infos[h].get('ip', nodes[h]['ip'])}:{p}"
+                for h in range(4)
+                for p in ready_infos[h].get("ports", [8000 + r for r in range(srph)])
+            ]
+            gw16_log = open(f"/workspace/gw16_{stag}.log", "w")
+            gw_env = {k: v for k, v in os.environ.items() if k != "LD_PRELOAD"}
+            gw16 = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(SCRIPT_DIR / "flint_v5p_gateway.py"),
+                    "--host",
+                    "0.0.0.0",
+                    "--port",
+                    "8090",
+                    "--backends",
+                    *all_16chip_backends,
+                ],
+                env=gw_env,
+                stdout=gw16_log,
+                stderr=gw16_log,
+            )
+            for _ in range(30):
+                if check_http_ok("http://127.0.0.1:8090/health"):
+                    break
+                time.sleep(1.0)
+
+            run_coherent_smoke_test(idx, "http://127.0.0.1:8090", stag)
+            mem_stats = parse_server_memory_stats(handle.log_paths, stp, sprec)
+            s_meta = {
+                "phase": "slice_16chip_empirical",
+                "config_tag": stag,
+                "precision": sprec,
+                "tp_size": stp,
+                "replicas_per_host": srph,
+                "slice_replicas_dp": srph * 4,
+                "attention_backend": "pallas_tpu_rpa_v3",
+                "kv_cache_dtype": "fp8_e4m3",
+                "swa_full_tokens_ratio": 0.10,
+                "mem_fraction_static": smem,
+                "max_running_requests": smrr,
+                "chunked_prefill_size": 8192,
+                "boot_s": handle.boot_s,
+                **mem_stats,
+            }
+            slice_matrix = [
+                (4096, 1024, 0.0, [1, 8, 32, 64, 128, 256, 512, 768]),
+                (4096, 1024, 0.80, [32, 128, 256, 512, 768]),
+                (4096, 1024, 0.95, [32, 128, 256, 512, 768]),
+                (8192, 1024, 0.0, [32, 128, 256, 512]),
+                (8192, 1024, 0.95, [32, 128, 256, 512]),
+                (65536, 1024, 0.95, [16, 64]),
+                (131072, 1024, 0.95, [8, 32]),
+            ]
+            for isl, osl, hit, concs in slice_matrix:
+                for c in concs:
+                    if c > smrr * srph * 4:
+                        continue
+                    run_benchmark_point(
+                        idx,
+                        entry_url="http://127.0.0.1:8090",
+                        backend_urls=all_16chip_backends,
+                        meta=s_meta,
+                        isl=isl,
+                        osl=osl,
+                        conc=c,
+                        hit_rate=hit,
+                        num_hosts_active=4,
+                        local_jsonl=local_jsonl,
+                        gcs_bucket=bucket,
+                        gcs_jsonl_obj=gcs_jsonl,
+                    )
+            gw16.terminate()
+            gcs_upload_bytes(bucket, f"flint-serving-results/coord/{run_id}/{stag}_done.json", b'{"ok":true}')
+        else:
+            while gcs_download_bytes(bucket, f"flint-serving-results/coord/{run_id}/{stag}_done.json") is None:
+                time.sleep(5)
+
+        kill_sglang_and_gateways()
+
+    log(idx, "ALL slice16_high_conc benchmarks COMPLETE!")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["smoke", "full_sweep"], required=True)
+    ap.add_argument("--mode", choices=["smoke", "full_sweep", "slice16_high_conc"], required=True)
     ap.add_argument("--gcs-bucket", default="YOUR_GCS_BUCKET")
     ap.add_argument("--run-id", required=True)
     args = ap.parse_args()
@@ -1654,9 +1809,12 @@ def main() -> None:
     idx = int(os.environ.get("JOB_COMPLETION_INDEX", "0"))
     if args.mode == "smoke":
         run_smoke_mode(idx, args.gcs_bucket, args.run_id)
+    elif args.mode == "slice16_high_conc":
+        run_slice16_high_conc_mode(idx, args.gcs_bucket, args.run_id)
     else:
         run_full_sweep_mode(idx, args.gcs_bucket, args.run_id)
 
 
 if __name__ == "__main__":
     main()
+

@@ -1,6 +1,6 @@
-# `RecursiveSI/flint` TorchTPU Serving & Optimization on TPU `v7x-16` (`Ironwood`)
+# `RecursiveSI/flint` TorchTPU Serving & Optimization on TPU `v7x-16`
 
-Production serving stack, sub-host VFIO replica orchestrator, parallel `[128, 128]` Block-FP8 checkpoint converter, fused Pallas `router_topk` (`256`-expert) kernel patch, cache-aware prefix-affinity gateway, and apples-to-apples benchmark suite for **`RecursiveSI/flint`** (`40B-A2.5B` sparse MoE coding-agent LLM) on a 4-host **Google Cloud TPU `v7x-16` (`Ironwood`)** slice (`2x2x4`).
+Production serving stack, sub-host VFIO replica orchestrator, parallel `[128, 128]` Block-FP8 checkpoint converter, fused Pallas `router_topk` (`256`-expert) kernel patch, cache-aware prefix-affinity gateway, and matched-workload benchmark suite for **`RecursiveSI/flint`** (`40B-A2.5B` sparse MoE coding-agent LLM) on a 4-host **Google Cloud TPU `v7x-16`** slice (`2x2x4`).
 
 ---
 
@@ -17,7 +17,7 @@ Production serving stack, sub-host VFIO replica orchestrator, parallel `[128, 12
   - **Learned Per-Head Attention Sinks**: `self_attn.sinks` (`softmax_offset`, `[32]` per layer), natively supported by `TpuPallasRpaV3AttnBackend` (`sinks=self.softmax_offset`) in `sglang-torchtpu`.
   - **Hybrid SWA KV Pool (`FlintConfig.is_hybrid_swa = True`)**: Separate paged KV pools for the 14 full-attention layers (`358.4 KiB/token` BF16, `179.2 KiB/token` FP8 across the model) vs the 35 sliding-window layers (`513`-token window).
 
-### TPU `v7x-16` (`Ironwood`, Topology `2x2x4`)
+### TPU `v7x-16` (`TPU v7x`, Topology `2x2x4`)
 - **Slice Geometry**: `4 hosts × 4 physical v7x chips = 16 chips / 32 TensorCores`.
 - **HBM3e Capacity**: `94.74 GiB` usable HBM per TensorCore (`189.48 GiB` per physical `v7x` chip, `757.9 GiB` per host, `3,031.7 GiB` usable / `3,072 GiB` nominal across the 16-chip slice).
 - **Host Memory**: `1,512 GiB` DDR5 RAM per host (`1,000 GiB` `/dev/shm` tmpfs holds both BF16 `79.6 GB` and Block-FP8 `40.43 GB` checkpoints simultaneously in RAM at `12%` utilization).
@@ -46,7 +46,7 @@ Production serving stack, sub-host VFIO replica orchestrator, parallel `[128, 12
 
 2. **4.6-Second Parallel BF16 -> `[128, 128]` Block-FP8 Converter (`scripts/convert_flint_fp8.py`)**:
    - Every 2D weight tensor in `RecursiveSI/flint` outside `lm_head`, `model.embed_tokens`, and `mlp.gate` is an exact multiple of `128` across `TP=1, 2, 4` (`q_proj [4096, 2048]`, `k/v_proj [512, 2048]`, `o_proj [2048, 4096]`, dense `[6144, 2048]`, shared expert `[1024, 2048]`, routed experts `[512, 2048]`).
-   - Converts all 15 safetensors shards in parallel (`ProcessPoolExecutor(15)` -> `40.43 GB`, `73,173` tensors in `4.6s` inside `/dev/shm/flint-fp8`), unlocking `TP=1 × DP=32` (`37.66 GiB` weights/TC) and accelerating `gmm_v2` MoE grouped matmuls on Ironwood MXUs.
+   - Converts all 15 safetensors shards in parallel (`ProcessPoolExecutor(15)` -> `40.43 GB`, `73,173` tensors in `4.6s` inside `/dev/shm/flint-fp8`), unlocking `TP=1 × DP=32` (`37.66 GiB` weights/TC) and accelerating `gmm_v2` MoE grouped matmuls on TPU v7x MXUs.
 
 3. **Fused VMEM Pallas `router_topk` (`256` Experts) + Argmax-Mask Prefill Routing (`scripts/patch_flint_router_topk.py`)**:
    - Stock `flint_sglang` passes a Python `custom_routing_function` (`torch.topk` + `scores.gather`), forcing XLA across all 47 MoE layers to emit a 256-column sort + general dynamic gather.
@@ -134,8 +134,7 @@ See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERV
 ## 7. Quickstart Reproduction
 
 ```bash
-export CLOUDSDK_METRICS_ENVIRONMENT=datacloud.antigravity
-CTX="--context=gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster"
+CTX="--context=gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v7x-cluster"
 
 # 1. Stage scripts to GCS bucket mounted by all pods and deploy the 4-host runner
 gcloud storage cp v7x/scripts/* gs://YOUR_GCS_BUCKET/flint-v7x-scripts/

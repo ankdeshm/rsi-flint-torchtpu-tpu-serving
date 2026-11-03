@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Surgical idempotent patcher to enable/restore fused TPU Pallas router_topk (256 experts) for RecursiveSI/flint.
 
-Why this matters on TPU v7x (Ironwood):
+Why this matters on TPU v7x:
   - Stock flint_sglang passes a Python custom_routing_function (sigmoid_routing) to SGLang's TopK,
     forcing XLA across all 47 MoE layers to emit a full 256-column TopK sort + dynamic gather.
   - sglang_tpu/moe/router_topk_tpu.py already implements:

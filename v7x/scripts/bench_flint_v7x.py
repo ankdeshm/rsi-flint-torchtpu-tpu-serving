@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Matched Apples-to-Apples Serving Benchmark & Quality Verifier for RecursiveSI/flint on TPU v7x-16.
+"""Matched Matched-Workload Serving Benchmark & Quality Verifier for RecursiveSI/flint on TPU v7x-16.
 
 Aligned 1:1 with peer v5p-16 benchmark protocol:
   - /v1/completions with deterministic token-ID arrays in [1000, 32999]
@@ -123,7 +123,7 @@ async def run_quality_checks(base_url: str, model_name: str) -> dict[str, Any]:
         }
 
         # 2) Long-context 32K needle-in-a-haystack passkey test (verifies SWA-513 + 14 Full NoPE + Attention Sinks!)
-        passkey = "FLINT-IRONWOOD-947261"
+        passkey = "FLINT-TPUV7X-947261"
         filler_block = "def helper_noop(x: int) -> int:\n    return (x * 31 + 7) % 10007\n\n"
         # ~16 tokens per filler_block -> ~2000 blocks ~ 32K tokens, needle placed at 25% depth (far outside 513 SWA window!)
         blocks = [filler_block] * 500 + [f"# CRITICAL_DEPLOYMENT_PASSKEY = '{passkey}'\n\n"] + [filler_block] * 1400
@@ -400,7 +400,7 @@ async def async_main(args: argparse.Namespace) -> None:
 
     bundle: dict[str, Any] = {
         "run_name": args.run_name,
-        "hardware": "TPU v7x-16 (Ironwood, 4 hosts x 4 chips = 16 chips / 32 TensorCores, 2x2x4)",
+        "hardware": "TPU v7x-16 ( 4 hosts x 4 chips = 16 chips / 32 TensorCores, 2x2x4)",
         "config": {
             "model_name": args.model_name,
             "weights_dtype": args.weights_dtype,

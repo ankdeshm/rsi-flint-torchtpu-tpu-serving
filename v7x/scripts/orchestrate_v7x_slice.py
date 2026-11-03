@@ -36,7 +36,6 @@ SCRIPTS = [
 
 def k_env() -> dict[str, str]:
     env = os.environ.copy()
-    env["CLOUDSDK_METRICS_ENVIRONMENT"] = "datacloud.antigravity"
     return env
 
 
@@ -140,7 +139,8 @@ def sync_scripts_to_pods(pods: list[dict[str, str]]) -> None:
 
 def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict:
     dp_size = args.dp_size if args.dp_size > 0 else (2 if args.tp_size == 1 else 1)
-    cores_per_srv = args.tp_size * dp_size
+    dp_attn = 'enable-dp-attention' in args.extra_args
+    cores_per_srv = args.tp_size if dp_attn else (args.tp_size * dp_size)
     replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // cores_per_srv)
 
     def start_host(p: dict[str, str]) -> dict:
@@ -194,7 +194,7 @@ def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict
         if args.disable_torch_compile:
             remote_cmd.append("--disable-torch-compile")
         if args.extra_args.strip():
-            remote_cmd.extend(["--extra-args", args.extra_args])
+            remote_cmd.append(f"--extra-args={args.extra_args}")
 
         res = run_kubectl(["exec", pod, "-c", "flint-tpu", "--", *remote_cmd], check=False, timeout=args.wait_timeout + 60)
         lines = [ln.strip() for ln in res.stdout.splitlines() if ln.strip().startswith("{")]
@@ -309,7 +309,8 @@ def main() -> None:
         return
 
     dp_size = args.dp_size if args.dp_size > 0 else (2 if args.tp_size == 1 else 1)
-    cores_per_srv = args.tp_size * dp_size
+    dp_attn = 'enable-dp-attention' in args.extra_args
+    cores_per_srv = args.tp_size if dp_attn else (args.tp_size * dp_size)
     replicas_per_host = args.replicas_per_host if args.replicas_per_host > 0 else (8 // cores_per_srv)
     total_replicas = args.total_replicas_override if args.total_replicas_override > 0 else (replicas_per_host * dp_size * args.num_hosts)
 

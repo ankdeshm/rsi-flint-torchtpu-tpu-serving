@@ -1,5 +1,5 @@
 {
-  "host": "gke-tpu-439a2c2e-p9gv",
+  "host": "tpu-v7x-host-0",
   "status": "ready",
   "startup_sec": 1693.3,
   "num_replicas": 1,

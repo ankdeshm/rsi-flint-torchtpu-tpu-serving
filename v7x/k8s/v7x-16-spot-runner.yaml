@@ -132,6 +132,8 @@ spec:
         volumeMounts:
         - name: dshm
           mountPath: /dev/shm
+        - name: ramtmp
+          mountPath: /tmp
         - name: models-gcs
           mountPath: /models
       volumes:
@@ -139,6 +141,9 @@ spec:
         hostPath:
           path: /dev/shm
           type: Directory
+      - name: ramtmp
+        emptyDir:
+          medium: Memory
       - name: models-gcs
         persistentVolumeClaim:
           claimName: tpu-models-gcs-pvc

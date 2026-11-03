@@ -1,6 +1,6 @@
 # RecursiveSI/flint (40B-A2.5B MoE) Serving Benchmark on Cloud TPU v7x-16
 
-**Platform:** Cloud TPU `v7x-16` (Ironwood — 4 hosts × 4 physical chips = 16 dual-core chips / 32 TensorCores, 2×2×4 3D Torus)  
+**Platform:** Cloud TPU `v7x-16` (TPU v7x — 4 hosts × 4 physical chips = 16 dual-core chips / 32 TensorCores, 2×2×4 3D Torus)  
 **Cluster:** `tpu-v5p-cluster` (`gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster`)  
 **Node Pool:** `tpu-v7x-16-pool` (Job: `flint-v7x-16-spot-runner-0..3`)  
 **Model Architecture:** `RecursiveSI/flint` (39.8B total parameters, 2.52B active per token, `hidden_size=2048`, `vocab_size=150,144`, 49-layer architecture: 2 dense SwiGLU + 47 sparse MoE layers with 256 routed experts [top-6 sigmoid] + 1 shared expert; 35 sliding-window RoPE layers [`W=513`, 71.4%] + 14 full-attention NoPE layers [28.6%] + per-head learned sinks, 262,144 max position embeddings; benchmarked up to 131,072 context)  
@@ -40,7 +40,7 @@ Quality checks were executed before every benchmark run against the live serving
 | Quality Verification Test | Target / Specification | Observed Result | Latency | Pass/Fail |
 | :--- | :--- | :--- | :---: | :---: |
 | **Functional Coding Correctness** | `merge_intervals(intervals: list[list[int]])` implementation + runtime test execution | Syntactically valid Python, passes sorting and interval union test suite | 1.48s – 2.68s | **PASS** |
-| **Long-Context Needle Retrieval (32K)** | 32,768 token background needle with passkey `FLINT-IRONWOOD-947261` | Exact passkey match (`FLINT-IRONWOOD-947261`) | 2.18s | **PASS** |
+| **Long-Context Needle Retrieval (32K)** | 32,768 token background needle with passkey `FLINT-TPUV7X-947261` | Exact passkey match (`FLINT-TPUV7X-947261`) | 2.18s | **PASS** |
 | **Long-Context Needle Retrieval (51K)** | 51,366 prompt tokens with passkey | Exact match recovered with zero corruption | 2.24s | **PASS** |
 
 Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zero degradation in mathematical or reasoning fidelity.
@@ -50,7 +50,7 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 ## 3. v7x-16 Benchmark Results (BF16 TP=2 × DP=16)
 
 **Hardware:** Full 4-host TPU v7x-16 slice (16 physical chips / 32 TensorCores, 16 independent BF16 `TP=2` replicas = `DP=16`, 32.8M Full KV tokens slice capacity).  
-**Protocol:** Standard Apples-to-Apples serving harness (`/v1/completions`, deterministic prompt tokens, `stream=True`, `flush_cache` before test points, 64-token aligned prefix trunks for 80%/95% cache).
+**Protocol:** Standard Matched-Workload serving harness (`/v1/completions`, deterministic prompt tokens, `stream=True`, `flush_cache` before test points, 64-token aligned prefix trunks for 80%/95% cache).
 
 ### 3.1 Input: 4,096 | Output: 1,024
 
@@ -397,7 +397,7 @@ Comparison between identical 16-chip cluster slices (`v7x-16` vs `v5p-16`):
 
 | Feature / Metric | Cloud TPU v5p-16 | Cloud TPU v7x-16 | v7x vs v5p |
 | :--- | :---: | :---: | :--- |
-| **Architecture Generation** | v5p | v7x (Ironwood) | Dual-core Ironwood chip |
+| **Architecture Generation** | v5p | v7x  | Dual-core TPU v7x chip |
 | **Physical Chips in 16-Slice** | 16 single-core chips | 16 dual-core chips | **2× compute density** |
 | **Total TensorCores in Slice** | 16 TensorCores | 32 TensorCores | **2× compute engines** |
 | **HBM per Physical Chip** | 95.0 GiB | 189.5 GiB | **2.00× HBM per chip** |

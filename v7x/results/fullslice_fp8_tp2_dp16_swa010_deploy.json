@@ -1,7 +1,7 @@
 {
   "hosts": [
     {
-      "host": "gke-tpu-439a2c2e-85rn",
+      "host": "tpu-v7x-host-0",
       "status": "ready",
       "startup_sec": 1135.3,
       "num_replicas": 4,
@@ -3538,7 +3538,7 @@
       "returncode": 0
     },
     {
-      "host": "gke-tpu-439a2c2e-g7d3",
+      "host": "tpu-v7x-host-1",
       "status": "ready",
       "startup_sec": 1150.3,
       "num_replicas": 4,
@@ -7075,7 +7075,7 @@
       "returncode": 0
     },
     {
-      "host": "gke-tpu-439a2c2e-2dnt",
+      "host": "tpu-v7x-host-2",
       "status": "ready",
       "startup_sec": 1156.3,
       "num_replicas": 4,
@@ -10612,7 +10612,7 @@
       "returncode": 0
     },
     {
-      "host": "gke-tpu-439a2c2e-67t7",
+      "host": "tpu-v7x-host-3",
       "status": "ready",
       "startup_sec": 1120.4,
       "num_replicas": 4,

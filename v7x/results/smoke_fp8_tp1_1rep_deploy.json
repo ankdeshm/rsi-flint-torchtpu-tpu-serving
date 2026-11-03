@@ -1,5 +1,5 @@
 {
-  "host": "gke-tpu-439a2c2e-65v3",
+  "host": "tpu-v7x-host-0",
   "status": "error",
   "failed_replica": 0,
   "port": 30000,
