@@ -1,0 +1,19 @@
+{
+  "run_name": "A6_fp8_dpattn8_ep8",
+  "status": "unsupported",
+  "worker_id": "rqkr",
+  "host": "flint-opt-sglang-rqkr-56vvf",
+  "axis": "A_parallelism",
+  "description": "Block-FP8 weights + FP8 KV, DP-Attention (DP=4, attn_tp=2, TP=8) + EP=8 (--enable-dp-attention --enable-dp-lm-head)",
+  "launch_diagnostics": {
+    "initial_attempt": {
+      "returncode": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"/workspace/launch_host_replicas.py\", line 440, in <module>\n    main()\n  File \"/workspace/launch_host_replicas.py\", line 200, in main\n    assert num_replicas * cores_per_srv <= 8, f\"num_replicas={num_replicas} * cores_per_srv={cores_per_srv} > 8 TensorCores!\"\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: num_replicas=1 * cores_per_srv=32 > 8 TensorCores!\n"
+    },
+    "fallback_no_compile": {
+      "returncode": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"/workspace/launch_host_replicas.py\", line 440, in <module>\n    main()\n  File \"/workspace/launch_host_replicas.py\", line 200, in main\n    assert num_replicas * cores_per_srv <= 8, f\"num_replicas={num_replicas} * cores_per_srv={cores_per_srv} > 8 TensorCores!\"\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: num_replicas=1 * cores_per_srv=32 > 8 TensorCores!\n"
+    }
+  },
+  "timestamp": "2026-11-03T10:17:52Z"
+}

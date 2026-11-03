@@ -30,6 +30,21 @@ Serving stacks (**`sglang-torchtpu`** sub-host zero-ICI `TP×DP` and **`vllm-tor
 
 ---
 
+<!-- BEGIN_SINGLE_HOST_AND_MULTILORA_OPT -->
+## Single-Host Optimization Matrix (`Axes A–E`) & Compiled Multi-LoRA Serving (`v7x` & `v5p`)
+
+- **Single-Host TPU `v7x` (`4` Chips / `8` TensorCores, `Axes A–D`):** `C2_bf16_tp2_dp4_bf16kv` reaches **`9,534.1` tok/s/host** (`38,136.3` tok/s `16`-chip equiv) at `1K` and `8,815.1` tok/s/host at `4K`, `A1_fp8_tp2_dp4` reaches **`8,763.6` tok/s/host** at `4K` and `2,078.1` tok/s/host at `128K` (`6.45 ms` `1`-stream `TPOT`), and `A5_fp8_tp8_ep8` (`TP=8 × EP=8`) cuts `64K` TTFT `2.06×` to **`1,225.3 ms`** uncached / **`135.8 ms`** cached. Full `20+`-run matrix in [`docs/SINGLEHOST_AND_MULTILORA_OPTIMIZATION.md`](./docs/SINGLEHOST_AND_MULTILORA_OPTIMIZATION.md) and [`multilora_singlehost_opt/v7x/`](./multilora_singlehost_opt/v7x/).
+- **Compiled Multi-LoRA Serving on TPU `v7x` (`E1_sglang_fp8_multilora`, `TP=2 × DP=4`):** **`4,352.3` tok/s/host** (`1–3` concurrent LoRAs) and **`3,634.9` tok/s/host** across `4` concurrent TorchTitan PEFT adapters (`lora_bf16 + qlora_int8 + qlora_nf4 + lora_attn`) vs `3,984.6` tok/s/host base-only (`0` runtime graph breaks, `13.3 ms` / `24.8 ms` live hot-swap; patch: [`patch_sglang_tpu_lora.py`](./multilora_singlehost_opt/scripts/patch_sglang_tpu_lora.py), JSON: [`E_sglang_flint_multilora.json`](./multilora_singlehost_opt/v7x/E_sglang_flint_multilora.json)).
+- **Compiled Multi-LoRA Serving on TPU `v7x` (`E2_sglang_bf16_multilora`, `TP=2 × DP=4`):** **`4,293.8` tok/s/host** (`1–3` concurrent LoRAs) and **`3,633.6` tok/s/host** across `4` concurrent TorchTitan PEFT adapters (`lora_bf16 + qlora_int8 + qlora_nf4 + lora_attn`) vs `4,120.3` tok/s/host base-only (`0` runtime graph breaks, `12.4 ms` / `24.4 ms` live hot-swap; patch: [`patch_sglang_tpu_lora.py`](./multilora_singlehost_opt/scripts/patch_sglang_tpu_lora.py), JSON: [`E_sglang_flint_multilora.json`](./multilora_singlehost_opt/v7x/E_sglang_flint_multilora.json)).
+- **Compiled Multi-LoRA Serving on TPU `v5p` (`BF16 + FP8 KV`, `TP=4 × DP=1`):** **`1,632.1` tok/s/host** (`6,528.5` tok/s `16`-chip slice equiv) across `4` concurrent PEFT adapters ([`pod1_v5p_bfloat16_multilora.json`](./multilora_singlehost_opt/v5p/pod1_v5p_bfloat16_multilora.json)).
+- **Compiled Multi-LoRA Serving on TPU `v5p` (`Block-FP8 + FP8 KV`, `TP=4 × DP=1`):** **`860.5` tok/s/host** (`3,441.9` tok/s `16`-chip slice equiv) across `4` concurrent PEFT adapters ([`pod0_v5p_fp8_block128_multilora.json`](./multilora_singlehost_opt/v5p/pod0_v5p_fp8_block128_multilora.json)).
+- **Companion Fine-Tuning Repository:** [`ankdeshm/rsi-flint-tpu-lora-qlora-finetuning`](https://github.com/ankdeshm/rsi-flint-tpu-lora-qlora-finetuning) (`11` `TPU v5p-16` TorchTitan runs across `BF16 LoRA`, `INT8 QLoRA`, `NF4 QLoRA`, `r=64`, `attn-only`, and `16K/32K/64K` `PallasCrossEntropyLoss`).
+- **Scripts & K8s Manifests:** [`run_v7x_sglang_worker.py`](./multilora_singlehost_opt/scripts/run_v7x_sglang_worker.py) · [`patch_sglang_tpu_lora.py`](./multilora_singlehost_opt/scripts/patch_sglang_tpu_lora.py) · [`bench_flint_multilora_sglang.py`](./multilora_singlehost_opt/scripts/bench_flint_multilora_sglang.py) · [`bench_flint_vllm_rqkr.py`](./multilora_singlehost_opt/scripts/bench_flint_vllm_rqkr.py) · [`run_v5p_wave_b_worker.py`](./multilora_singlehost_opt/scripts/run_v5p_wave_b_worker.py) · [`flint-v5p-multilora-fix.yaml`](./multilora_singlehost_opt/k8s/flint-v5p-multilora-fix.yaml)
+- **Full Deep-Dive Report:** [`docs/SINGLEHOST_AND_MULTILORA_OPTIMIZATION.md`](./docs/SINGLEHOST_AND_MULTILORA_OPTIMIZATION.md)
+
+---
+<!-- END_SINGLE_HOST_AND_MULTILORA_OPT -->
+
 ## 3. Repository Structure
 
 - **[`v7x/`](./v7x/README.md)** — Complete **TPU `v7x-16`** serving stack, sub-host VFIO multi-replica launcher (`TP=1/2/4/8`), fused 256-expert Pallas `router_topk` patch, `[128, 128]` Block-FP8 converter, prefix-affinity gateway, [`v7x/docs/FLINT_V7X_SERVING_RESULTS.md`](./v7x/docs/FLINT_V7X_SERVING_RESULTS.md), and `18` empirical JSON archives in [`v7x/results/`](./v7x/results/).
@@ -37,3 +52,4 @@ Serving stacks (**`sglang-torchtpu`** sub-host zero-ICI `TP×DP` and **`vllm-tor
 - **[`vllm/`](./vllm/README.md)** — Native **`vllm-torchtpu` (`v0.32.0`)** multi-host Ray `EP=32` (`v7x-16`) & `EP=16` (`v5p-16`) serving stack, `FlintForCausalLM` + Pallas RPA v3 `head_dim=128` `attention_sink` installer, K8s manifests, and `9` complete empirical JSON archives (`145` points, `0` errors) in [`vllm/results/`](./vllm/results/).
 - **[`docs/MULTISLICE_EP_OPTIMIZATION.md`](./docs/MULTISLICE_EP_OPTIMIZATION.md)** — Multi-host `EP=32`/`EP=16` optimization & `sglang-torchtpu` vs `vllm-torchtpu` Pareto report.
 - **[`docs/FLINT_V7X_SERVING_RESULTS.md`](./docs/FLINT_V7X_SERVING_RESULTS.md)** — Deep-dive engineering & roofline report.
+- **[`multilora_singlehost_opt/`](./multilora_singlehost_opt/)** & **[`docs/SINGLEHOST_AND_MULTILORA_OPTIMIZATION.md`](./docs/SINGLEHOST_AND_MULTILORA_OPTIMIZATION.md)** — Single-host `v7x` (`Axes A–E`) + `v5p` Wave B serving optimization matrix (`TP × DP × EP`, `RadixCache`, `swa_ratio`, `SGLang` vs `vLLM`) & static-shape XLA-compiled Multi-LoRA / QLoRA-style serving benchmarks.
