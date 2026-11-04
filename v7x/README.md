@@ -82,8 +82,9 @@ v7x/
 │   └── metadata_hook.c               # Thread-safe LD_PRELOAD connect() redirector for 169.254.169.254
 ├── docs/
 │   └── FLINT_V7X_SERVING_RESULTS.md  # Comprehensive empirical serving & optimization report
-└── results/                          # Complete empirical benchmark JSON runs (19 files, 660+ points)
+└── results/                          # Complete empirical benchmark JSON runs (20 files, 750+ points)
     ├── fullslice_fp8_tp2_dpattn32_swa010.json # Full 16-engine (32-rank DP-Attn) Block-FP8 slice sweep (39,520.7 tok/s)
+    ├── fullslice_bf16_tp2_dp16_mrr96_swa010.json # Full 16-replica BF16 mrr=96 swa=0.10 slice sweep (35,581.0 tok/s, 91 pts)
     ├── fullslice_bf16_tp2_dp16.json  # Full 16-replica 4-host BF16 slice sweep (33,421.5 tok/s)
     ├── fullslice_fp8_tp2_dp16_swa010.json # Full 16-replica Block-FP8 swa=0.10 slice sweep (8K/64K/128K)
     ├── smoke_fp8_dpattn_1chip.json   # Block-FP8 attn_tp=1 x DP=2 benchmark (75 points)
@@ -108,8 +109,8 @@ See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERV
 | Metric / Scenario | TPU v5p-16 (`TP=2 × DP=8`, `mrr=96`) | TPU v7x-16 (`TP=2 × DP=16` / `DP-Attn=32`) | Delta / Speedup | Primary Driver |
 | :--- | :---: | :---: | :---: | :--- |
 | **Peak Throughput (`4K:1024`, 95% cache)** | 18,940.7 tok/s *(`c=768`)* | **39,520.7 tok/s** *(`c=1024`)* / **37,321.6** *(`c=768`, `0` err)* | **2.09×** | 32 DP-Attention ranks + HBM3e bandwidth |
-| **Peak Throughput (`4K:1024`, 0% cache)** | 15,016.0 tok/s *(`c=768`)* | **34,317.3 tok/s** *(`c=768`, `0` err)* | **2.29×** | HBM3e bandwidth + MXU compute + DP-Attention |
-| **Peak Throughput (`8K:1024`, 95% cache)** | 13,689.2 tok/s *(`c=512`)* | **39,035.7 tok/s** *(`c=1024`)* / **30,995.4** *(`c=512`, `0` err)* | **2.85×** | 32 attention DP ranks + zero inter-chip ICI |
+| **Peak Throughput (`4K:1024`, 0% cache)** | 15,016.0 tok/s *(`c=768`)* | **35,004.7 tok/s** *(`BF16 mrr=96`)* / **34,317.3** *(`FP8 DP-Attn=32`, `0` err)* | **2.33×** | HBM3e bandwidth + MXU compute + `mrr=96` / `DP-Attn` |
+| **Peak Throughput (`8K:1024`, 95% cache)** | 13,689.2 tok/s *(`c=512`)* | **39,035.7 tok/s** *(`c=1024`)* / **32,269.7** *(`BF16 mrr=96`, `0` err)* | **2.85×** | 32 attention DP ranks + zero inter-chip ICI |
 | **Throughput (`16K:1024`, c=128, 95% cache)** | 7,120.5 tok/s | **26,632.1 tok/s** | **3.74×** | Prefix caching + DP=16 replica concurrency |
 | **Throughput (`64K:1024`, 95% cache)** | 3,511.0 tok/s *(`c=64`)* | **7,225.0 tok/s** *(`FP8`)* / **6,643.2** *(`BF16`)* | **2.06×** | SWA hybrid KV pool + 3.03 TB slice HBM |
 | **Throughput (`128K:1024`, 95% cache)** | 1,867.8 tok/s *(`c=32`)* | **5,172.5 tok/s** *(`FP8`)* / **4,864.2** *(`BF16`)* | **2.77×** | 3.03 TB aggregate HBM3e capacity (`117.8M` KV) |
@@ -123,7 +124,7 @@ See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERV
 
 | Workload Profile | Target SLA | Recommended Topology | Weights / KV Dtype | SWA Full Ratio | Max Replicas (`v7x-16`) | Concurrency Capacity | Key Rationale |
 | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
-| **Interactive Coding Agent** (`4K`–`16K`, c=128–512) | TTFT < 350ms, TPOT < 15ms | `TP=2 × DP=16` | BF16 / FP8 KV | 0.10 | 16 replicas | up to 512 concurrent streams | Reaches **33,421.5 tok/s** (`6.7ms` `c=1` TPOT) with zero inter-chip ICI latency. |
+| **Interactive & Uncached Coding Agent** (`4K`–`16K`, `mrr=96`) | TTFT < 350ms, TPOT < 15ms | `TP=2 × DP=16` (`mrr=96`) | BF16 / FP8 KV | 0.10 | 16 replicas | up to 1024 concurrent streams | Reaches **35,581.0 tok/s** (`95%`, `0` err @ `c=768`) & **35,004.7 tok/s** (`0%`), **`6.39ms` `c=1` TPOT**. |
 | **High-Concurrency Serving** (`4K`–`8K`, c=768–1024) | Max Slice Tokens / Second | `TP=2 × DP-Attn=32` | Block-FP8 / FP8 KV | 0.10 | 16 engines (`32` attn DP) | up to 1024 concurrent streams | Reaches **39,520.7 tok/s** (`4K`) & **39,035.7 tok/s** (`8K`), **37,321.6 tok/s** (`0` err @ `c=768`). |
 | **Long Context** (`64K`–`128K`, c=16–512) | TTFT < 3.0s (cached), TPOT < 30ms | `TP=2 × DP=16` | Block-FP8 / FP8 KV | 0.10 | 16 replicas | up to 512 concurrent streams | 189.5 GB/chip holds weights + 7.36M tokens/replica (`117.8M`/slice). |
 | **Low-Latency Long Prefill** (`128K`–`256K`, c=1–8) | TTFT < 10.0s (uncached) | `TP=8 × DP=4` | BF16 / FP8 KV | 0.10 | 4 replicas | up to 32 concurrent streams | TP=8 shards prefill across 8 TCs (1 host) via ICI. |
