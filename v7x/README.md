@@ -30,6 +30,7 @@ Production serving stack, sub-host VFIO replica orchestrator, parallel `[128, 12
 | Config | Weights | KV Cache | TensorCores / Replica | Physical Chips / Replica | HBM / Replica | Replicas / Host | Total Slice Replicas (`DP`) | Inter-Chip ICI |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **`TP=1 × DP=32`** | Block-FP8 `[128,128]` | FP8 (`e4m3`) | 1 TC | 0.5 chip | `94.74 GiB` | 8 | **32** | **Zero** (single TC) |
+| **`TP=2 × DP-Attn=32`** | Block-FP8 `[128,128]` | FP8 (`e4m3`) | 2 TCs (`attn_tp=1 × dp=2`) | **1 chip** | `189.48 GiB` | 4 (`8` attn DP) | **16** (`32` attn DP) | **Zero** (intra-package die-to-die) |
 | **`TP=2 × DP=16`** | BF16 or Block-FP8 | FP8 / BF16 | 2 TCs | **1 chip** | `189.48 GiB` | 4 | **16** | **Zero** (intra-package die-to-die) |
 | **`TP=4 × DP=8`** | BF16 or Block-FP8 | FP8 / BF16 | 4 TCs | 2 chips | `378.96 GiB` *(matches 1 `v5p` host)* | 2 | **8** | 2-chip intra-host ICI |
 | **`TP=8 × DP=4`** | BF16 or Block-FP8 | FP8 / BF16 | 8 TCs | 4 chips (1 host) | `757.92 GiB` | 1 | **4** | 4-chip `2x2` intra-host ICI |
@@ -42,11 +43,11 @@ Production serving stack, sub-host VFIO replica orchestrator, parallel `[128, 12
 1. **Sub-Host Multi-Replica PJRT & Metadata Isolation (`scripts/launch_host_replicas.py`, `scripts/mock_metadata.py`, `scripts/metadata_hook.c`)**:
    - Uses `SGLANG_TPU_PD_COLOCATED=1` + `--base-gpu-id <r * tp_size>` so `sglang`'s `monkey_patch_torch_tpu_env` maps `LOCAL_RANK` directly to physical VFIO group `0..7`.
    - Intercepts `169.254.169.254:80` via `LD_PRELOAD=/workspace/metadata_hook.so` -> `127.0.0.1:80` (`mock_metadata.py`), eliminating `libtpu 0.0.50`'s 30x retry delay on missing GKE `tpu-env` attributes and isolating single-host/sub-host `CHIPS_PER_HOST_BOUNDS=2,2,1` topology from the 4-host slice metadata.
-   - Assigns disjoint `MASTER_PORT`, `nccl_port`, `TORCH_TPU_SLICEBUILDER_ADDRESSES`, `TPU_RUNTIME_METRICS_PORTS`, and `SGLANG_BASE_TORCHINDUCTOR_CACHE_DIR` per replica to prevent port contention and concurrent TorchInductor cache races.
+   - Assigns disjoint `MASTER_PORT`, `nccl_port`, `--port <30000 + r*20>` (preventing `PortArgs.init_new` `+233..239` ZMQ TCP port collisions under `--enable-dp-attention`), `TORCH_TPU_SLICEBUILDER_ADDRESSES`, `TPU_RUNTIME_METRICS_PORTS`, and `SGLANG_BASE_TORCHINDUCTOR_CACHE_DIR` per replica.
 
 2. **4.6-Second Parallel BF16 -> `[128, 128]` Block-FP8 Converter (`scripts/convert_flint_fp8.py`)**:
    - Every 2D weight tensor in `RecursiveSI/flint` outside `lm_head`, `model.embed_tokens`, and `mlp.gate` is an exact multiple of `128` across `TP=1, 2, 4` (`q_proj [4096, 2048]`, `k/v_proj [512, 2048]`, `o_proj [2048, 4096]`, dense `[6144, 2048]`, shared expert `[1024, 2048]`, routed experts `[512, 2048]`).
-   - Converts all 15 safetensors shards in parallel (`ProcessPoolExecutor(15)` -> `40.43 GB`, `73,173` tensors in `4.6s` inside `/dev/shm/flint-fp8`), unlocking `TP=1 × DP=32` (`37.66 GiB` weights/TC) and accelerating `gmm_v2` MoE grouped matmuls on TPU v7x MXUs.
+   - Converts all 15 safetensors shards in parallel (`ProcessPoolExecutor(15)` -> `40.43 GB`, `73,173` tensors in `4.6s` inside `/dev/shm/flint-fp8`), unlocking `TP=1 × DP=32` (`37.66 GiB` weights/TC) and intra-chip `TP=2 + DP-Attention=32` (**`39,520.7` tok/s** @ `c=1024`, **`37,321.6` tok/s** `0`-err @ `c=768`).
 
 3. **Fused VMEM Pallas `router_topk` (`256` Experts) + Argmax-Mask Prefill Routing (`scripts/patch_flint_router_topk.py`)**:
    - Stock `flint_sglang` passes a Python `custom_routing_function` (`torch.topk` + `scores.gather`), forcing XLA across all 47 MoE layers to emit a 256-column sort + general dynamic gather.
@@ -69,7 +70,7 @@ v7x/
 │   └── v7x-16-spot-runner.yaml       # Self-bootstrapping 4-host Indexed Job + headless Service
 ├── scripts/
 │   ├── orchestrate_v7x_slice.py      # Master 4-host dynamic discovery, deploy & benchmark runner
-│   ├── launch_host_replicas.py       # Per-host sub-slice (TP=1/2/4/8) isolated SGLang launcher
+│   ├── launch_host_replicas.py       # Per-host sub-slice (TP=1/2/4/8 & DP-Attention) isolated SGLang launcher
 │   ├── gateway_flint_v7x.py          # Cache-aware trunk-affinity + least-inflight async HTTP gateway
 │   ├── bench_flint_v7x.py            # Matched v7x-16 vs v5p-16 benchmark & 32K needle quality suite
 │   ├── convert_flint_fp8.py          # 4.6s parallel BF16 -> [128, 128] Block-FP8 converter
@@ -81,7 +82,8 @@ v7x/
 │   └── metadata_hook.c               # Thread-safe LD_PRELOAD connect() redirector for 169.254.169.254
 ├── docs/
 │   └── FLINT_V7X_SERVING_RESULTS.md  # Comprehensive empirical serving & optimization report
-└── results/                          # Complete empirical benchmark JSON runs (16 files, 532+ points)
+└── results/                          # Complete empirical benchmark JSON runs (19 files, 660+ points)
+    ├── fullslice_fp8_tp2_dpattn32_swa010.json # Full 16-engine (32-rank DP-Attn) Block-FP8 slice sweep (39,520.7 tok/s)
     ├── fullslice_bf16_tp2_dp16.json  # Full 16-replica 4-host BF16 slice sweep (33,421.5 tok/s)
     ├── fullslice_fp8_tp2_dp16_swa010.json # Full 16-replica Block-FP8 swa=0.10 slice sweep (8K/64K/128K)
     ├── smoke_fp8_dpattn_1chip.json   # Block-FP8 attn_tp=1 x DP=2 benchmark (75 points)
@@ -103,20 +105,17 @@ See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERV
 
 ### Comparison: TPU v7x-16 vs TPU v5p-16 (Matched 16-Chip Slices)
 
-| Metric / Scenario | TPU v5p-16 (`TP=4 × DP=4`) | TPU v7x-16 (`TP=2 × DP=16`) | Delta / Speedup | Primary Driver |
-| :--- | :---: | :---: | :---: | :---: |
-| **Throughput (`4K:1024`, c=512, 95% cache)** | 10,750.8 tok/s | **33,421.5 tok/s** | **3.11×** | 4× Replicas (DP=16 vs DP=4) + zero inter-chip ICI |
-| **Throughput (`4K:1024`, c=512, 0% cache)** | 8,912.4 tok/s | **29,833.1 tok/s** | **3.35×** | HBM3e bandwidth + MXU compute |
+| Metric / Scenario | TPU v5p-16 (`TP=2 × DP=8`, `mrr=96`) | TPU v7x-16 (`TP=2 × DP=16` / `DP-Attn=32`) | Delta / Speedup | Primary Driver |
+| :--- | :---: | :---: | :---: | :--- |
+| **Peak Throughput (`4K:1024`, 95% cache)** | 18,940.7 tok/s *(`c=768`)* | **39,520.7 tok/s** *(`c=1024`)* / **37,321.6** *(`c=768`, `0` err)* | **2.09×** | 32 DP-Attention ranks + HBM3e bandwidth |
+| **Peak Throughput (`4K:1024`, 0% cache)** | 15,016.0 tok/s *(`c=768`)* | **34,317.3 tok/s** *(`c=768`, `0` err)* | **2.29×** | HBM3e bandwidth + MXU compute + DP-Attention |
+| **Peak Throughput (`8K:1024`, 95% cache)** | 13,689.2 tok/s *(`c=512`)* | **39,035.7 tok/s** *(`c=1024`)* / **30,995.4** *(`c=512`, `0` err)* | **2.85×** | 32 attention DP ranks + zero inter-chip ICI |
 | **Throughput (`16K:1024`, c=128, 95% cache)** | 7,120.5 tok/s | **26,632.1 tok/s** | **3.74×** | Prefix caching + DP=16 replica concurrency |
-| **Throughput (`16K:1024`, c=128, 0% cache)** | 5,430.1 tok/s | **16,860.3 tok/s** | **3.10×** | Intra-package die-to-die TP=2 |
-| **Throughput (`64K:1024`, c=32, 95% cache)** | 2,140.2 tok/s | **6,643.2 tok/s** | **3.10×** | SWA hybrid KV pool + 3.03 TB slice HBM |
-| **TTFT (`64K:1024`, c=1, 95% cache)** | 2,840 ms | **985 ms** | **2.88× faster** | Prefix lookup + Pallas attention |
-| **Throughput (`128K:1024`, c=16, 95% cache)** | 1,480.0 tok/s | **4,864.2 tok/s** | **3.29×** | 3.03 TB aggregate HBM3e capacity |
-| **TTFT (`128K:1024`, c=1, 95% cache)** | 6,420 ms | **2,268 ms** | **2.83× faster** | Trunk cache hits bypass 128K prefill compute |
+| **Throughput (`64K:1024`, 95% cache)** | 3,511.0 tok/s *(`c=64`)* | **7,225.0 tok/s** *(`FP8`)* / **6,643.2** *(`BF16`)* | **2.06×** | SWA hybrid KV pool + 3.03 TB slice HBM |
+| **Throughput (`128K:1024`, 95% cache)** | 1,867.8 tok/s *(`c=32`)* | **5,172.5 tok/s** *(`FP8`)* / **4,864.2** *(`BF16`)* | **2.77×** | 3.03 TB aggregate HBM3e capacity (`117.8M` KV) |
 | **TTFT (`128K:1024`, c=1, 0% cache)** | 48,200 ms | **20,172 ms** | **2.39× faster** | MXU prefill matmul throughput |
 | **Cold Boot / JIT Compilation Time** | 1,256s – 1,572s (~26m) | **88s – 120s** (~1.8m) | **11.4× faster** | OpenXLA / PJRT compiler pipeline |
 | **Total Slice Usable HBM** | 1,515.8 GiB (94.7 GiB/chip) | **3,031.7 GiB** (189.5 GiB/chip) | **2.00×** | Dual-die packaging with HBM3e per physical chip |
-| **Total Concurrently Served Replicas** | 4 replicas | **16 replicas** | **4.00×** | Intra-package TP=2 enables 1 replica per chip |
 
 ---
 
@@ -124,9 +123,9 @@ See the full report in [`docs/FLINT_V7X_SERVING_RESULTS.md`](docs/FLINT_V7X_SERV
 
 | Workload Profile | Target SLA | Recommended Topology | Weights / KV Dtype | SWA Full Ratio | Max Replicas (`v7x-16`) | Concurrency Capacity | Key Rationale |
 | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
-| **Interactive Coding Agent** (`4K`–`16K`, c=128–512) | TTFT < 200ms, TPOT < 25ms | `TP=2 × DP=16` | BF16 / FP8 KV | 0.10 | 16 replicas | up to 512 concurrent streams | Reaches **33,421 tok/s** with zero inter-chip ICI latency. |
-| **Long Context** (`64K`–`128K`, c=16–64) | TTFT < 3.0s (cached), TPOT < 30ms | `TP=2 × DP=16` | Block-FP8 / FP8 KV | 0.10 | 16 replicas | up to 64 concurrent streams | 189.5 GB/chip holds weights + 7.36M tokens/replica. |
-| **High-Throughput Batch Processing** (`4K`–`16K`, c=1024+) | High Tokens / Second | `TP=1 × DP=32` | Block-FP8 / FP8 KV | 0.10 | 32 replicas | up to 1024 concurrent streams | Disables TP communication; 1 replica per TC. |
+| **Interactive Coding Agent** (`4K`–`16K`, c=128–512) | TTFT < 350ms, TPOT < 15ms | `TP=2 × DP=16` | BF16 / FP8 KV | 0.10 | 16 replicas | up to 512 concurrent streams | Reaches **33,421.5 tok/s** (`6.7ms` `c=1` TPOT) with zero inter-chip ICI latency. |
+| **High-Concurrency Serving** (`4K`–`8K`, c=768–1024) | Max Slice Tokens / Second | `TP=2 × DP-Attn=32` | Block-FP8 / FP8 KV | 0.10 | 16 engines (`32` attn DP) | up to 1024 concurrent streams | Reaches **39,520.7 tok/s** (`4K`) & **39,035.7 tok/s** (`8K`), **37,321.6 tok/s** (`0` err @ `c=768`). |
+| **Long Context** (`64K`–`128K`, c=16–512) | TTFT < 3.0s (cached), TPOT < 30ms | `TP=2 × DP=16` | Block-FP8 / FP8 KV | 0.10 | 16 replicas | up to 512 concurrent streams | 189.5 GB/chip holds weights + 7.36M tokens/replica (`117.8M`/slice). |
 | **Low-Latency Long Prefill** (`128K`–`256K`, c=1–8) | TTFT < 10.0s (uncached) | `TP=8 × DP=4` | BF16 / FP8 KV | 0.10 | 4 replicas | up to 32 concurrent streams | TP=8 shards prefill across 8 TCs (1 host) via ICI. |
 
 ---

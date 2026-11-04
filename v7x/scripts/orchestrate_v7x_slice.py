@@ -221,7 +221,7 @@ def launch_cluster(pods: list[dict[str, str]], args: argparse.Namespace) -> dict
     for hr in host_results:
         ip = hr["ip"]
         for r in range(replicas_per_host):
-            worker_urls.append(f"http://{ip}:{30000 + r}")
+            worker_urls.append(f"http://{ip}:{30000 + r * 20}")
 
     # Start gateway on Pod 0 (:8000)
     pod0 = pods[0]["pod"]

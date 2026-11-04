@@ -201,7 +201,7 @@ def main() -> None:
     assert num_replicas * cores_per_srv <= 8, f"num_replicas={num_replicas} * cores_per_srv={cores_per_srv} > 8 TensorCores!"
 
     if args.mode == "status":
-        statuses = {args.base_port + r: http_health(args.base_port + r) for r in range(num_replicas)}
+        statuses = {args.base_port + r * 20: http_health(args.base_port + r * 20) for r in range(num_replicas)}
         print(json.dumps({"host": os.uname().nodename, "ports": statuses}))
         return
 
@@ -226,7 +226,7 @@ def main() -> None:
 
     for r in range(num_replicas):
         base_gpu_id = r * cores_per_srv
-        port = args.base_port + r
+        port = args.base_port + r * 20
         nccl_port = 27500 + r * 20
         master_port = 29500 + r * 20
         slice_addrs = ",".join(f"127.0.0.1:{28500 + r * 20 + k}" for k in range(cores_per_srv))
@@ -307,8 +307,7 @@ def main() -> None:
         ]
         if args.dp_size > 1:
             cmd.extend(["--dp-size", str(args.dp_size)])
-        else:
-            cmd.extend(["--nccl-port", str(nccl_port)])
+        cmd.extend(["--nccl-port", str(nccl_port)])
         if "cuda_graph_max_bs" in fields:
             cmd.extend(["--cuda-graph-max-bs", str(args.torch_compile_max_bs)])
         if "torch_compile_max_bs" in fields:

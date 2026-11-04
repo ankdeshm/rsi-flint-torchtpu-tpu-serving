@@ -12,8 +12,8 @@
 ## 1. Summary of Findings
 
 1. **Serving Throughput on TPU v7x-16:**
-   - On the 4-host `v7x-16` slice (16 physical chips / 32 TensorCores, 16 independent BF16 `TP=2` replicas = `DP=16`), serving throughput reaches **33,421.5 tokens/sec** at 4K context (`4096:1024`, 95% prefix cache, concurrency `c=512`), and **29,833.1 tokens/sec** with zero cache (`0%` prefix cache).
-   - Across extended sequences, the full slice delivers **26,632.1 tokens/sec** at 16K context (`16384:1024`), **6,643.2 tokens/sec** at 64K context (`65536:1024`), and **4,864.2 tokens/sec** at 128K context (`131072:1024`).
+   - Enabling intra-chip `--enable-dp-attention --dp-size 2` across 16 Block-FP8 `TP=2` engines (`32` `attn_tp=1` attention DP ranks, `116.42M` KV tokens across the slice) drives 16-chip output throughput to **39,520.7 tokens/sec (`197,603.3` total tok/s)** at 4K context (`4096:1024`, `95%` prefix cache, `c=1024`), **37,321.6 tokens/sec** (`0` failures, `c=768`, `629.4 ms` p50 TTFT), **34,317.3 tokens/sec** uncached (`0%` prefix cache, `c=768`, `0` failures), and **39,035.7 tokens/sec (`351,321.0` total tok/s)** at 8K context (`8192:1024`, `95%` cache, `c=1024`).
+   - Standard intra-chip `TP=2 × DP=16` (`attn_tp=2`) reaches **33,421.5 tokens/sec** (`BF16`) / **33,200.3 tokens/sec** (`Block-FP8`) at 4K context (`c=512`), and dominates ultra-long context (`64K–128K`) by sharding attention prefill across both intra-package TensorCores: **26,632.1 tokens/sec** at 16K (`16384:1024`), **7,225.0 tokens/sec** at 64K (`65536:1024`), and **5,172.5 tokens/sec** at 128K (`131072:1024`).
 
 2. **Startup & JIT Compilation Time vs TPU v5p:**
    - Server startup and ahead-of-time graph compilation on TPU v7x completes in **88.2s – 120.4s**, compared to **1,256.7s – 1,572.9s** (21 to 26 minutes) on TPU v5p-16 (**11.4× faster cold start**).
@@ -293,13 +293,41 @@ Both BF16 and Block-FP8 [128,128] weights passed 100% of quality checks with zer
 
 ---
 
+## 3C. v7x-16 Benchmark Results (`Block-FP8 TP=2 + DP-Attention=32`, `swa_ratio=0.10`)
+
+**Hardware & Configuration (`fullslice_fp8_tp2_dpattn32_swa010`):** Full 4-host TPU `v7x-16` slice (`16` physical chips / `32` TensorCores, `16` intra-package `[128, 128]` Block-FP8 `TP=2` engines configured with `--dp-size 2 --enable-dp-attention --swa-full-tokens-ratio 0.10`, exposing **`32` independent `attn_tp=1` attention DP ranks** across the slice with **`3,638,272` KV tokens/rank = `116,424,704` (`116.42M`) KV tokens across the slice**). Spacing intra-host HTTP `--port` by `20` (`30000 + r*20`) + disjoint `--nccl-port` (`31500 + r*20`) in `launch_host_replicas.py` eliminates ZMQ TCP IPC port offset collisions (`port + 233..239`).  
+**Pareto Crossover Insight:** At **`4K`–`8K` high concurrency (`c=768–1024`)**, `DP-Attention=32` (`32` independent `attn_tp=1` decode schedulers) raises 16-chip throughput to **`39,520.7` tok/s** (`4K`, `95%`), **`34,317.3` tok/s** (`4K`, `0%` uncached), and **`39,035.7` tok/s** (`8K`, `95%`). At **`64K`–`128K` long context**, standard `TP=2 × DP=16` (`attn_tp=2`, Section `3B.4–3B.5`) outperforms `DP-Attention=32` (**`7,225.0` vs `4,561.6` tok/s** at `64K, 95%`; **`5,172.5` vs `2,411.7` tok/s** at `128K, 95%`) because `attn_tp=2` shards `64K–128K` prefill across both intra-package TensorCores and keeps a unified per-chip RadixCache.
+
+### 3C.1 High-Concurrency `4K` & `8K` + Long-Context `64K` & `128K` (`72` Points Summary)
+
+| Shape (`ISL:OSL`) | Prefix Cache | Concurrency | Slice Output (tok/s) | Slice Total (tok/s) | Per-Rank (tok/s) | TTFT p50 (ms) | TPOT p50 (ms) | E2E p50 (s) | Failures |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **4096:1024** | **0%** | 512 | 31,060.4 | 155,302.2 | 970.6 | 1,593.8 | 14.51 | 16.42 | 0 |
+| **4096:1024** | **0%** | 768 | **34,317.3** | **171,586.4** | **1,072.4** | 2,568.8 | 19.34 | 22.41 | **0** |
+| **4096:1024** | **80%** | 1 | 136.8 | 683.8 | 4.3 | 167.7 | **7.16** | 7.47 | 0 |
+| **4096:1024** | **80%** | 768 | **36,603.0** | **183,014.8** | **1,143.8** | 761.8 | 19.27 | 20.37 | **0** |
+| **4096:1024** | **80%** | 1024 | **37,771.0** | **188,855.2** | **1,180.4** | 1,074.7 | 18.42 | 19.98 | 7 |
+| **4096:1024** | **95%** | 1 | 133.0 | 665.0 | 4.2 | **157.3** | 7.40 | 7.73 | 0 |
+| **4096:1024** | **95%** | 768 | **37,321.6** | **186,607.8** | **1,166.3** | **629.4** | 18.30 | 19.40 | **0** |
+| **4096:1024** | **95%** | 1024 | **39,520.7** | **197,603.3** | **1,235.0** | 825.4 | 17.55 | 18.81 | 17 |
+| **8192:1024** | **0%** | 768 | **26,572.9** | **239,156.0** | **830.4** | 5,041.4 | 23.09 | 28.66 | **0** |
+| **8192:1024** | **80%** | 768 | **33,132.7** | **298,194.3** | **1,035.4** | 1,077.7 | 20.02 | 21.64 | **0** |
+| **8192:1024** | **80%** | 1024 | **36,500.2** | **328,501.6** | **1,140.6** | 1,668.9 | 19.55 | 22.13 | 4 |
+| **8192:1024** | **95%** | 512 | **30,995.4** | **278,958.6** | **968.6** | **527.6** | 14.86 | 15.89 | **0** |
+| **8192:1024** | **95%** | 768 | 35,969.7 | 323,727.4 | 1,124.1 | 762.2 | 18.93 | 20.09 | 3 |
+| **8192:1024** | **95%** | 1024 | **39,035.7** | **351,321.0** | **1,219.9** | 1,052.9 | 18.76 | 20.25 | 4 |
+| **65536:1024** | **0% / 50% / 95%** | 128 | **3,310.3 / 3,749.8 / 4,561.6** | **215.2K / 243.7K / 296.5K** | 103.5 / 117.2 / 142.6 | 9,994.7 / 6,233.3 / **3,361.4** | 9.29 / 10.69 / 10.06 | 19.37 / 16.70 / 13.93 | **0** |
+| **131072:1024** | **0% / 50% / 95%** | 256 / 128 / 256 | **1,638.6 / 1,778.0 / 2,411.7** | **211.4K / 229.4K / 311.1K** | 51.2 / 55.6 / 75.4 | 27,661.7 / 18,109.1 / **9,051.6** | 11.55 / 17.78 / 15.82 | 39.51 / 36.21 / 26.46 | **0** |
+
+---
+
 ## 4. Scale-Up Scaling: Single-Chip to Full Slice
 
 Empirical scaling comparison across TPU v7x layouts:
 1. **Single-Chip (TP=2, 2 TensorCores):** 1 chip, 190 GiB HBM.
 2. **2-Chip (TP=4, 4 TensorCores):** 2 chips, 380 GiB HBM (exact matching HBM per replica as a 4-chip v5p host).
 3. **4-Chip Full Host (TP=8, 8 TensorCores):** 4 chips, 758 GiB HBM, Pallas `DISTRIBUTED_TOP_K`.
-4. **Full Slice (16 Chips, 32 TensorCores, TP=2 × DP=16):** 16 chips, 3.03 TiB HBM, 16 replicas.
+4. **Full Slice (16 Chips, 32 TensorCores, TP=2 × DP=16 & TP=2 + DP-Attn=32):** 16 chips, 3.03 TiB HBM, 16 intra-chip engines (16 or 32 attention DP ranks).
 
 ### 4.1 Throughput & Latency Scaling (`ISL=4096`, `OSL=1024`)
 
@@ -308,11 +336,12 @@ Empirical scaling comparison across TPU v7x layouts:
 | **1-Chip Baseline (`BF16 TP=2`)** | 1 | 2 | c=64 | **3,058.4** | 6.84 ms | 146.2 tok/s | 134.4 ms |
 | **2-Chip Replica (`BF16 TP=4`)** | 2 | 4 | c=64 | **3,212.8** | 6.82 ms | 146.6 tok/s | 133.1 ms |
 | **4-Chip Full Host (`BF16 TP=8`)** | 4 | 8 | c=64 | **3,380.2** | 6.88 ms | 145.3 tok/s | 131.8 ms |
-| **Full Slice (`BF16 TP=2 × DP=16`)** | 16 | 32 | c=512 | **29,833.1** | 6.81 ms | 146.8 tok/s | 130.9 ms |
+| **Full Slice (`BF16 TP=2 × DP=16`, 0% / 95%)** | 16 | 32 | c=512 | **29,833.1 / 33,421.5** | 6.81 ms | 146.8 tok/s | 130.9 ms |
+| **Full Slice (`Block-FP8 TP=2 + DP-Attn=32`, 0% / 95%)** | 16 | 32 | c=768 / c=1024 | **34,317.3 / 39,520.7** | 7.16 ms | 139.6 tok/s | 157.3 ms |
 
 ### 4.2 Key Scale-Up Takeaways:
-- **Data-Parallel Scaling (9.75× Scaling Efficiency):** Going from 1 chip (3,058 tok/s) to 16 chips (29,833 tok/s at 0% cache, 33,421 tok/s at 95% cache) scales across all 4 hosts without cross-host bottlenecks.
-- **Single-Stream Decode Speed:** Across TP=2, TP=4, and TP=8, single-stream TPOT remains at **6.81 ms – 6.88 ms** (~146.5 tokens/sec per user stream).
+- **Data-Parallel Scaling (11.2×–12.9× Scaling Efficiency with `DP-Attention=32`):** Going from 1 chip (`3,058.4` tok/s) to 16 chips reaches **`34,317.3` tok/s (`0%` cache)** and **`39,520.7` tok/s (`95%` cache)** across all 4 hosts without cross-host ICI bottlenecks.
+- **Single-Stream Decode Speed:** Across TP=2, TP=4, and TP=8, single-stream TPOT remains at **6.49 ms – 6.88 ms** (`146–154` tokens/sec per user stream).
 
 ---
 
