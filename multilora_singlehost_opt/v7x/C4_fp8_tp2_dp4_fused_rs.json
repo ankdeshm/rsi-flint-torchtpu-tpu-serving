@@ -1,14 +1,14 @@
 {
   "run_name": "C4_fp8_tp2_dp4_fused_rs",
   "status": "unsupported",
-  "worker_id": "rqkr",
-  "host": "flint-opt-sglang-rqkr-56vvf",
+  "worker_id": "worker-0",
+  "host": "tpu-v7x-worker",
   "axis": "C_precision_kernels",
   "description": "Block-FP8 weights + FP8 KV with moe_runner_backend=pallas_tpu_fused_rs (fused MoE + ReduceScatter)",
   "launch_diagnostics": {
     "returncode": -9,
     "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793697605.691451  258569 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793697606.396540  258569 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793697606.398845  258569 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-    "host": "flint-opt-sglang-rqkr-56vvf",
+    "host": "tpu-v7x-worker",
     "status": "error",
     "failed_replica": 0,
     "port": 30000,

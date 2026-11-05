@@ -1,6 +1,6 @@
 {
   "run_name": "A3_fp8_tp4_dp2",
-  "hardware": "Single-Host TPU v7x (flint-opt-sglang-rqkr-56vvf, 4 dual-core chips = 8 TensorCores, 768 GB HBM)",
+  "hardware": "Single-Host TPU v7x (4 dual-core chips = 8 TensorCores, 768 GB HBM)",
   "config": {
     "model_name": "/dev/shm/flint-fp8",
     "weights_dtype": "fp8_block128",
@@ -1256,14 +1256,14 @@
     }
   ],
   "status": "completed",
-  "worker_id": "rqkr",
+  "worker_id": "worker-0",
   "used_disable_compile": false,
   "axis": "A_parallelism",
   "description": "Block-FP8 weights + FP8 KV, TP=4 x DP=2 (2 replicas x 2 v7x chips / 4 TensorCores each)",
   "server_launch": {
     "returncode": 0,
     "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793688704.478524   45000 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793688705.178897   45000 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793688705.181150   45000 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-    "host": "flint-opt-sglang-rqkr-56vvf",
+    "host": "tpu-v7x-worker",
     "status": "ready",
     "startup_sec": 1226.4,
     "num_replicas": 2,

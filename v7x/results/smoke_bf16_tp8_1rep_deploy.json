@@ -1016,6 +1016,6 @@
     }
   ],
   "tag": "smoke_bf16_tp8_1rep",
-  "pod": "flint-v7x-16-spot-runner-3-r6rlz",
+  "pod": "flint-v7x-16-spot-runner-3",
   "returncode": 0
 }

@@ -1,14 +1,14 @@
 {
   "run_name": "D4_fp8_tp2_dp4_cp16k_mrr128",
   "status": "unsupported",
-  "worker_id": "v7spot",
-  "host": "flint-opt-sglang-v7spot-6xz7d",
+  "worker_id": "worker-1",
+  "host": "tpu-v7x-worker",
   "axis": "D_caching_memory_scheduling",
   "description": "Aggressive batching & prefill chunking: chunked_prefill_size=16384, max_prefill_tokens=32768, max_running_requests=128",
   "launch_diagnostics": {
     "returncode": -9,
     "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793692265.760305   33882 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793692266.497041   33882 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793692266.499839   33882 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-    "host": "flint-opt-sglang-v7spot-6xz7d",
+    "host": "tpu-v7x-worker",
     "status": "error",
     "failed_replica": 0,
     "port": 30000,

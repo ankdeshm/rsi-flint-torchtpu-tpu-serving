@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: flint-opt-sglang-rqkr
+  name: flint-opt-sglang-v7x
   namespace: default
   labels:
-    app: flint-opt-sglang-rqkr
+    app: flint-opt-sglang-v7x
 spec:
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app: flint-opt-sglang-rqkr
+        app: flint-opt-sglang-v7x
       annotations:
         gke-gcsfuse/volumes: "true"
         gke-gcsfuse/cpu-limit: "0"
@@ -32,7 +32,7 @@ spec:
       - {key: cloud.google.com/gke-spot, operator: Exists, effect: NoSchedule}
       containers:
       - name: flint-tpu
-        image: us-central1-docker.pkg.dev/your-gcp-project-id/vllm/sglang-torchtpu-diffusion:v0.2.0
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/sglang-torchtpu-diffusion:v0.2.0
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
@@ -42,7 +42,7 @@ spec:
           set -euo pipefail
           ulimit -c 0 || true
           mkdir -p /dev/shm/flint_work /dev/shm/hf_cache /dev/shm/xla_cache /dev/shm/tmp /workspace/logs /workspace/results
-          echo "[rqkr] Host=$(hostname) Bootstrapping Flint SGLang environment..."
+          echo "[sglang-v7x] Host=$(hostname) Bootstrapping Flint SGLang environment..."
           if [ -f /models/models/RecursiveSI/flint/sglang/flint_sglang-0.1.4-py3-none-any.whl ]; then
             pip install --no-deps /models/models/RecursiveSI/flint/sglang/flint_sglang-0.1.4-py3-none-any.whl
           fi
@@ -86,7 +86,7 @@ spec:
             python3 /workspace/convert_flint_fp8.py --src /dev/shm/flint --dst /dev/shm/flint-fp8 --workers 15
           fi
           df -h /dev/shm
-          echo "[rqkr] READY_FOR_BENCHMARKS"
+          echo "[sglang-v7x] READY_FOR_BENCHMARKS"
           sleep infinity
         env:
         - {name: PJRT_DEVICE, value: "TPU"}

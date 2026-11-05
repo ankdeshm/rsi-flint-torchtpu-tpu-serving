@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Distributed/Single-Host SGLang-TorchTPU Optimization Matrix Runner for RecursiveSI/flint on TPU v7x (8 TensorCores).
 
-Supports concurrent execution across multiple independent 1-host v7x pods (e.g. `rqkr` forward + `v7spot` reverse)
-via atomic claim files + per-point JSON checkpointing on GCS (`/models/benchmark-results/flint_v7x_rqkr_opt/`).
+Supports concurrent execution across multiple independent 1-host v7x pods (e.g. `worker-0` forward + `worker-1` reverse)
+via atomic claim files + per-point JSON checkpointing on GCS (`/models/benchmark-results/flint_v7x_singlehost_opt/`).
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import numpy as np
 if "/workspace" not in sys.path:
     sys.path.insert(0, "/workspace")
 
-GCS_ROOT = Path("/models/benchmark-results/flint_v7x_rqkr_opt")
+GCS_ROOT = Path("/models/benchmark-results/flint_v7x_singlehost_opt")
 RUNS_DIR = GCS_ROOT / "runs"
 CLAIMS_DIR = GCS_ROOT / "claims"
 LOCAL_RESULTS = Path("/workspace/results")
@@ -840,7 +840,7 @@ def rebuild_master_summary() -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--worker-id", default="rqkr")
+    ap.add_argument("--worker-id", default="worker-0")
     ap.add_argument("--reverse", action="store_true", help="Traverse MATRIX in reverse order for lock-free 2-host parallelism")
     ap.add_argument("--only", default="", help="Optional comma-separated config_ids")
     args = ap.parse_args()

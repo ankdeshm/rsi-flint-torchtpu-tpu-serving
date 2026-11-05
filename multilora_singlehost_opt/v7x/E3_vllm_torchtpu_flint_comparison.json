@@ -1,8 +1,8 @@
 {
   "run_name": "E3_vllm_torchtpu_flint_comparison",
   "axis": "E_engine_comparison",
-  "host": "flint-opt-vllm-rqkr-m29dj",
-  "hardware": "Single-Host TPU v7x (flint-opt-vllm-rqkr-m29dj, 4 chips = 8 TensorCores)",
+  "host": "tpu-v7x-worker",
+  "hardware": "Single-Host TPU v7x (4 chips = 8 TensorCores)",
   "timestamp": "2026-11-03T12:02:31Z",
   "versions": {
     "vllm": "0.32.0+empty",

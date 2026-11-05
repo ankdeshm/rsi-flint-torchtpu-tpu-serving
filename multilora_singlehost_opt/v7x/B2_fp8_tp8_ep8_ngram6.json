@@ -1,15 +1,15 @@
 {
   "run_name": "B2_fp8_tp8_ep8_ngram6",
   "status": "unsupported",
-  "worker_id": "rqkr",
-  "host": "flint-opt-sglang-rqkr-56vvf",
+  "worker_id": "worker-0",
+  "host": "tpu-v7x-worker",
   "axis": "B_speculative_decoding",
   "description": "N-Gram Speculative Decoding (draft_tokens=6, bfs=[1,4]) on Block-FP8 TP=8 + EP=8 ultra-low-latency config",
   "launch_diagnostics": {
     "initial_attempt": {
       "returncode": 1,
       "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793694844.303748  200441 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793694845.036174  200441 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793694845.038471  200441 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-      "host": "flint-opt-sglang-rqkr-56vvf",
+      "host": "tpu-v7x-worker",
       "status": "error",
       "failed_replica": 0,
       "port": 30000,
@@ -19,7 +19,7 @@
     "fallback_no_compile": {
       "returncode": 1,
       "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793694863.830164  200711 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793694864.550968  200711 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793694864.553254  200711 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-      "host": "flint-opt-sglang-rqkr-56vvf",
+      "host": "tpu-v7x-worker",
       "status": "error",
       "failed_replica": 0,
       "port": 30000,

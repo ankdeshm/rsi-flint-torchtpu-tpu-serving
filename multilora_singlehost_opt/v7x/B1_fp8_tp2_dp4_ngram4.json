@@ -1,15 +1,15 @@
 {
   "run_name": "B1_fp8_tp2_dp4_ngram4",
   "status": "unsupported",
-  "worker_id": "rqkr",
-  "host": "flint-opt-sglang-rqkr-56vvf",
+  "worker_id": "worker-0",
+  "host": "tpu-v7x-worker",
   "axis": "B_speculative_decoding",
   "description": "N-Gram Speculative Decoding (draft_tokens=4, bfs=[1,4]) on Block-FP8 TP=2 x DP=4",
   "launch_diagnostics": {
     "initial_attempt": {
       "returncode": 1,
       "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793692746.277343  145192 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793692746.984314  145192 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793692746.986760  145192 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-      "host": "flint-opt-sglang-rqkr-56vvf",
+      "host": "tpu-v7x-worker",
       "status": "error",
       "failed_replica": 0,
       "port": 30000,
@@ -19,7 +19,7 @@
     "fallback_no_compile": {
       "returncode": 1,
       "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793692765.761218  145888 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793692766.492306  145888 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793692766.494569  145888 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-      "host": "flint-opt-sglang-rqkr-56vvf",
+      "host": "tpu-v7x-worker",
       "status": "error",
       "failed_replica": 0,
       "port": 30000,

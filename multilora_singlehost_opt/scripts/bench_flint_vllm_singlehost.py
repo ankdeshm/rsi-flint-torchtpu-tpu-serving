@@ -30,7 +30,7 @@ import numpy as np
 
 MODEL_BF16_GCS = Path("/models/models/RecursiveSI/flint")
 MODEL_FP8_GCS = Path("/models/models/RecursiveSI/flint-fp8")
-OUT_JSON = Path("/models/benchmark-results/flint_v7x_rqkr_opt/runs/E3_vllm_torchtpu_flint_comparison.json")
+OUT_JSON = Path("/models/benchmark-results/flint_v7x_singlehost_opt/runs/E3_vllm_torchtpu_flint_comparison.json")
 
 ADAPTERS = [
     ("lora_bf16", "/models/adapters/flint-40b-lora-r16"),
@@ -101,7 +101,7 @@ def stage_dir(src: Path, dst: Path) -> float:
     with cf.ThreadPoolExecutor(max_workers=16) as ex:
         tot = sum(ex.map(_cp, files))
     dt = max(time.time() - t0, 1e-3)
-    print(f"[vllm-rqkr] Staged {tot/1e9:.2f} GB from {src} -> {dst} in {dt:.1f}s", flush=True)
+    print(f"[vllm-singlehost] Staged {tot/1e9:.2f} GB from {src} -> {dst} in {dt:.1f}s", flush=True)
     return round(dt, 2)
 
 
@@ -331,7 +331,7 @@ def _save_report(report: dict[str, Any]) -> None:
             tok = json.loads(mr.read().decode("utf-8"))["access_token"]
         bucket = os.environ.get("GCS_ARTIFACTS_BUCKET", "")
         if bucket:
-            obj_name = "benchmark-results/flint_v7x_rqkr_opt/runs/E3_vllm_torchtpu_flint_comparison.json"
+            obj_name = "benchmark-results/flint_v7x_singlehost_opt/runs/E3_vllm_torchtpu_flint_comparison.json"
             up_url = f"https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o?uploadType=media&name={urllib.parse.quote(obj_name, safe='')}"
             ureq = urllib.request.Request(
                 up_url,
@@ -342,7 +342,7 @@ def _save_report(report: dict[str, Any]) -> None:
             with urllib.request.urlopen(ureq, timeout=15.0) as ur:
                 ur.read()
     except Exception as exc:
-        print(f"[vllm-rqkr] Direct GCS upload note: {exc}", flush=True)
+        print(f"[vllm-singlehost] Direct GCS upload note: {exc}", flush=True)
 
 
 def bench_vllm_point(port: int, models_schedule: list[str], isl: int, osl: int, conc: int, coding: bool = False) -> dict[str, Any]:
@@ -411,7 +411,7 @@ def run_plugin_experiment(name: str, model_dir: str, tp: int, dp: int, extra_arg
         "--trust-remote-code",
         *extra_args,
     ]
-    print(f"[vllm-rqkr] Launching {name}: {' '.join(cmd)}", flush=True)
+    print(f"[vllm-singlehost] Launching {name}: {' '.join(cmd)}", flush=True)
     t0 = time.time()
     lf = log_path.open("w")
     proc = subprocess.Popen(cmd, env=env, stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)
@@ -492,7 +492,7 @@ def main() -> None:
     # Stage 2: Install custom FlintForCausalLM vLLM plugin if staged alongside this script
     installer = Path(__file__).resolve().parent / "install_flint_vllm.py"
     if installer.exists() and MODEL_FP8_GCS.exists():
-        print("[vllm-rqkr] Installing custom FlintForCausalLM vllm-torchtpu plugin...", flush=True)
+        print("[vllm-singlehost] Installing custom FlintForCausalLM vllm-torchtpu plugin...", flush=True)
         subprocess.run([sys.executable, str(installer)], check=True)
         stage_dir(MODEL_FP8_GCS, Path("/dev/shm/flint-fp8"))
         staged_loras: list[tuple[str, str]] = []
@@ -528,7 +528,7 @@ def main() -> None:
                 for c in [1, 16, 64]:
                     pts_tp2.append(bench_vllm_point(8110, [nm for nm, _ in staged_loras], 1024, 512, c))
                 clean_vllm_ray(env)
-            print(f"[vllm-rqkr] vllm_fp8_tp2_dp4_ep8_lora_probe -> status={info_tp2.get('status')}", flush=True)
+            print(f"[vllm-singlehost] vllm_fp8_tp2_dp4_ep8_lora_probe -> status={info_tp2.get('status')}", flush=True)
             report["plugin_enabled_benchmarks"]["vllm_fp8_tp2_dp4_ep8_lora_probe"] = {"launch": info_tp2, "points": pts_tp2}
             _save_report(report)
 
@@ -555,7 +555,7 @@ def main() -> None:
                         pts_tp1.append(pt)
                         print(f"  [vllm-multilora] {sched_label} c={c} -> {pt['host_output_tok_s']} tok/s | 1-stream={pt['single_stream_tok_s']} tok/s", flush=True)
                 clean_vllm_ray(env)
-            print(f"[vllm-rqkr] vllm_fp8_tp1_dp8_ep8_multilora -> status={info_tp1.get('status')} pts={len(pts_tp1)}", flush=True)
+            print(f"[vllm-singlehost] vllm_fp8_tp1_dp8_ep8_multilora -> status={info_tp1.get('status')} pts={len(pts_tp1)}", flush=True)
             report["plugin_enabled_benchmarks"]["vllm_fp8_tp1_dp8_ep8_multilora"] = {"launch": info_tp1, "points": pts_tp1}
             _save_report(report)
 
@@ -583,7 +583,7 @@ def main() -> None:
                 pts_ng.append(pt_std)
                 print(f"  [vllm-ngram5] standard 1024:512 c={c} -> {pt_std['host_output_tok_s']} tok/s | 1-stream={pt_std['single_stream_tok_s']} tok/s", flush=True)
             clean_vllm_ray(env)
-        print(f"[vllm-rqkr] vllm_fp8_tp4_dp2_ep8_ngram5 -> status={info_ng.get('status')} pts={len(pts_ng)}", flush=True)
+        print(f"[vllm-singlehost] vllm_fp8_tp4_dp2_ep8_ngram5 -> status={info_ng.get('status')} pts={len(pts_ng)}", flush=True)
         report["plugin_enabled_benchmarks"]["vllm_fp8_tp4_dp2_ep8_ngram5"] = {"launch": info_ng, "points": pts_ng}
 
     report["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

@@ -46,7 +46,7 @@ spec:
       - {key: cloud.google.com/gke-queued, operator: Exists, effect: NoSchedule}
       containers:
       - name: sglang-v5p
-        image: us-central1-docker.pkg.dev/your-gcp-project-id/vllm/sglang-torchtpu-diffusion:v0.2.0
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/sglang-torchtpu-diffusion:v0.2.0
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true

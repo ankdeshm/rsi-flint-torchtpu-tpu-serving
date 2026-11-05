@@ -2,7 +2,7 @@
   "status": "completed",
   "tag": "v5p_bfloat16_multilora",
   "precision": "bfloat16",
-  "hardware": "TPU v5p Single-Host (4 chips) + 4-Host v5p-16 Equivalent",
+  "hardware": "TPU v5p Single-Host (4 chips)",
   "launch": {
     "entry_url": "http://127.0.0.1:30000",
     "backend_urls": [

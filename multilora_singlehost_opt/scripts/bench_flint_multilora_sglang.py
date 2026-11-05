@@ -380,7 +380,7 @@ def launch_multilora_phase(
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--output", default="/models/benchmark-results/flint_v7x_rqkr_opt/runs/E_sglang_flint_multilora.json")
+    ap.add_argument("--output", default="/models/benchmark-results/flint_v7x_singlehost_opt/runs/E_sglang_flint_multilora.json")
     ap.add_argument("--phases", default="fp8,bf16", help="Comma-separated: fp8,bf16")
     args = ap.parse_args()
 

@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 
-CTX = "--context=gke_YOUR_GCP_PROJECT_ID_us-central1_tpu-v5p-cluster"
+CTX = "--context=gke_YOUR_GCP_PROJECT_ID_YOUR_REGION_YOUR_GKE_CLUSTER"
 LOCAL_DIR = Path(". Benchmark Suite/flint_v7x_serving")
 RESULTS_DIR = LOCAL_DIR / "results"
 SCRIPTS = [

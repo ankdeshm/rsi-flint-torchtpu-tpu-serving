@@ -1,8 +1,8 @@
 {
   "run_name": "E_sglang_flint_multilora",
   "axis": "E_multilora_qlora_serving",
-  "host": "flint-opt-sglang-rqkr-56vvf",
-  "hardware": "Single-Host TPU v7x (flint-opt-sglang-rqkr-56vvf, 4 chips = 8 TensorCores, TP=2 x DP=4)",
+  "host": "tpu-v7x-worker",
+  "hardware": "Single-Host TPU v7x (4 chips = 8 TensorCores, TP=2 x DP=4)",
   "adapters_staged": {
     "lora_bf16": "/dev/shm/flint_adapters/lora_bf16",
     "qlora_int8": "/dev/shm/flint_adapters/qlora_int8",
@@ -17,7 +17,7 @@
       "launch_info": {
         "returncode": 0,
         "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793701080.798970  340057 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793701081.526555  340057 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793701081.528913  340057 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-        "host": "flint-opt-sglang-rqkr-56vvf",
+        "host": "tpu-v7x-worker",
         "status": "ready",
         "startup_sec": 1732.6,
         "num_replicas": 4,
@@ -4865,7 +4865,7 @@
       "launch_info": {
         "returncode": 0,
         "stderr_tail": "WARNING: All log messages before absl::InitializeLog() is called are written to STDERR\nI0000 00:00:1793703871.034491  372190 pjrt_api.cc:119] GetPjrtApi was found for TPU at /usr/local/lib/python3.12/site-packages/libtpu/libtpu.so\nI0000 00:00:1793703871.728632  372190 device_rt.cc:166] PjRt runtime initialization deferred for tpu\nSuccessfully renamed PrivateUse1 backend to 'tpu'. Device: device(type='tpu')\nRegistered Python module for 'tpu'.\nDevice type: tpu, Device index: default\nInitializing TPU distributed runtime\nI0000 00:00:1793703871.730929  372190 libtpu_version.cc:63] Setting libtpu version to: 0.0.50\n",
-        "host": "flint-opt-sglang-rqkr-56vvf",
+        "host": "tpu-v7x-worker",
         "status": "ready",
         "startup_sec": 1540.6,
         "num_replicas": 4,

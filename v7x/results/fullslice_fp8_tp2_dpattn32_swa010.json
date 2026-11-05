@@ -68,7 +68,7 @@
       "e2e_s_p50": 8.214,
       "e2e_s_p99": 8.604,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:07:53Z"
     },
     {
@@ -109,7 +109,7 @@
       "e2e_s_p50": 8.468,
       "e2e_s_p99": 9.113,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:08:11Z"
     },
     {
@@ -150,7 +150,7 @@
       "e2e_s_p50": 9.849,
       "e2e_s_p99": 10.74,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:08:32Z"
     },
     {
@@ -191,7 +191,7 @@
       "e2e_s_p50": 11.895,
       "e2e_s_p99": 12.471,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:08:57Z"
     },
     {
@@ -232,7 +232,7 @@
       "e2e_s_p50": 16.416,
       "e2e_s_p99": 17.298,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:09:33Z"
     },
     {
@@ -273,7 +273,7 @@
       "e2e_s_p50": 22.41,
       "e2e_s_p99": 23.228,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:10:22Z"
     },
     {
@@ -318,7 +318,7 @@
       "e2e_s_p50": 24.392,
       "e2e_s_p99": 25.691,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:11:15Z"
     },
     {
@@ -359,7 +359,7 @@
       "e2e_s_p50": 7.473,
       "e2e_s_p99": 7.575,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:11:46Z"
     },
     {
@@ -400,7 +400,7 @@
       "e2e_s_p50": 7.987,
       "e2e_s_p99": 9.033,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:12:04Z"
     },
     {
@@ -441,7 +441,7 @@
       "e2e_s_p50": 9.266,
       "e2e_s_p99": 11.317,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:12:27Z"
     },
     {
@@ -482,7 +482,7 @@
       "e2e_s_p50": 12.993,
       "e2e_s_p99": 18.746,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:13:00Z"
     },
     {
@@ -523,7 +523,7 @@
       "e2e_s_p50": 16.657,
       "e2e_s_p99": 20.439,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:13:40Z"
     },
     {
@@ -564,7 +564,7 @@
       "e2e_s_p50": 20.365,
       "e2e_s_p99": 21.944,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:14:26Z"
     },
     {
@@ -609,7 +609,7 @@
       "e2e_s_p50": 19.978,
       "e2e_s_p99": 21.39,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:15:10Z"
     },
     {
@@ -650,7 +650,7 @@
       "e2e_s_p50": 7.728,
       "e2e_s_p99": 8.014,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:15:41Z"
     },
     {
@@ -691,7 +691,7 @@
       "e2e_s_p50": 8.074,
       "e2e_s_p99": 9.073,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:16:00Z"
     },
     {
@@ -732,7 +732,7 @@
       "e2e_s_p50": 8.433,
       "e2e_s_p99": 9.609,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:16:20Z"
     },
     {
@@ -773,7 +773,7 @@
       "e2e_s_p50": 11.087,
       "e2e_s_p99": 14.049,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:16:47Z"
     },
     {
@@ -817,7 +817,7 @@
       "e2e_s_p50": 14.918,
       "e2e_s_p99": 19.443,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:17:24Z"
     },
     {
@@ -858,7 +858,7 @@
       "e2e_s_p50": 19.401,
       "e2e_s_p99": 22.528,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:18:09Z"
     },
     {
@@ -903,7 +903,7 @@
       "e2e_s_p50": 18.808,
       "e2e_s_p99": 20.933,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:18:51Z"
     },
     {
@@ -944,7 +944,7 @@
       "e2e_s_p50": 7.965,
       "e2e_s_p99": 8.174,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:19:23Z"
     },
     {
@@ -985,7 +985,7 @@
       "e2e_s_p50": 8.235,
       "e2e_s_p99": 8.994,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:19:41Z"
     },
     {
@@ -1026,7 +1026,7 @@
       "e2e_s_p50": 9.129,
       "e2e_s_p99": 10.521,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:20:01Z"
     },
     {
@@ -1067,7 +1067,7 @@
       "e2e_s_p50": 13.729,
       "e2e_s_p99": 14.196,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:20:32Z"
     },
     {
@@ -1110,7 +1110,7 @@
       "e2e_s_p50": 20.805,
       "e2e_s_p99": 21.314,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:21:17Z"
     },
     {
@@ -1151,7 +1151,7 @@
       "e2e_s_p50": 28.658,
       "e2e_s_p99": 29.689,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:22:22Z"
     },
     {
@@ -1192,7 +1192,7 @@
       "e2e_s_p50": 32.929,
       "e2e_s_p99": 33.959,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:23:34Z"
     },
     {
@@ -1233,7 +1233,7 @@
       "e2e_s_p50": 7.657,
       "e2e_s_p99": 7.816,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:24:05Z"
     },
     {
@@ -1274,7 +1274,7 @@
       "e2e_s_p50": 8.086,
       "e2e_s_p99": 8.791,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:24:24Z"
     },
     {
@@ -1315,7 +1315,7 @@
       "e2e_s_p50": 8.602,
       "e2e_s_p99": 10.075,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:24:46Z"
     },
     {
@@ -1356,7 +1356,7 @@
       "e2e_s_p50": 12.213,
       "e2e_s_p99": 15.28,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:25:18Z"
     },
     {
@@ -1397,7 +1397,7 @@
       "e2e_s_p50": 16.406,
       "e2e_s_p99": 19.795,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:25:58Z"
     },
     {
@@ -1438,7 +1438,7 @@
       "e2e_s_p50": 21.641,
       "e2e_s_p99": 24.534,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:26:51Z"
     },
     {
@@ -1483,7 +1483,7 @@
       "e2e_s_p50": 22.134,
       "e2e_s_p99": 24.352,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:27:39Z"
     },
     {
@@ -1524,7 +1524,7 @@
       "e2e_s_p50": 7.536,
       "e2e_s_p99": 8.011,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:28:10Z"
     },
     {
@@ -1565,7 +1565,7 @@
       "e2e_s_p50": 8.098,
       "e2e_s_p99": 9.11,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:28:30Z"
     },
     {
@@ -1606,7 +1606,7 @@
       "e2e_s_p50": 8.555,
       "e2e_s_p99": 9.422,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:28:51Z"
     },
     {
@@ -1647,7 +1647,7 @@
       "e2e_s_p50": 11.537,
       "e2e_s_p99": 14.246,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:29:21Z"
     },
     {
@@ -1688,7 +1688,7 @@
       "e2e_s_p50": 15.889,
       "e2e_s_p99": 18.629,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:29:59Z"
     },
     {
@@ -1733,7 +1733,7 @@
       "e2e_s_p50": 20.092,
       "e2e_s_p99": 22.609,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:30:47Z"
     },
     {
@@ -1778,7 +1778,7 @@
       "e2e_s_p50": 20.249,
       "e2e_s_p99": 22.322,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:31:31Z"
     },
     {
@@ -1819,7 +1819,7 @@
       "e2e_s_p50": 12.245,
       "e2e_s_p99": 12.263,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:33:40Z"
     },
     {
@@ -1860,7 +1860,7 @@
       "e2e_s_p50": 12.531,
       "e2e_s_p99": 12.9,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:33:53Z"
     },
     {
@@ -1901,7 +1901,7 @@
       "e2e_s_p50": 20.345,
       "e2e_s_p99": 20.656,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:34:16Z"
     },
     {
@@ -1942,7 +1942,7 @@
       "e2e_s_p50": 19.374,
       "e2e_s_p99": 19.704,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:34:38Z"
     },
     {
@@ -1983,7 +1983,7 @@
       "e2e_s_p50": 19.4,
       "e2e_s_p99": 19.799,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:34:59Z"
     },
     {
@@ -2024,7 +2024,7 @@
       "e2e_s_p50": 11.244,
       "e2e_s_p99": 12.241,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:35:24Z"
     },
     {
@@ -2065,7 +2065,7 @@
       "e2e_s_p50": 12.417,
       "e2e_s_p99": 13.243,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:35:46Z"
     },
     {
@@ -2106,7 +2106,7 @@
       "e2e_s_p50": 16.677,
       "e2e_s_p99": 17.395,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:36:20Z"
     },
     {
@@ -2147,7 +2147,7 @@
       "e2e_s_p50": 16.695,
       "e2e_s_p99": 17.416,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:36:54Z"
     },
     {
@@ -2188,7 +2188,7 @@
       "e2e_s_p50": 16.713,
       "e2e_s_p99": 17.412,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:37:28Z"
     },
     {
@@ -2229,7 +2229,7 @@
       "e2e_s_p50": 10.086,
       "e2e_s_p99": 12.44,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:37:53Z"
     },
     {
@@ -2270,7 +2270,7 @@
       "e2e_s_p50": 12.511,
       "e2e_s_p99": 13.279,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:38:25Z"
     },
     {
@@ -2311,7 +2311,7 @@
       "e2e_s_p50": 13.921,
       "e2e_s_p99": 14.563,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:39:16Z"
     },
     {
@@ -2352,7 +2352,7 @@
       "e2e_s_p50": 13.934,
       "e2e_s_p99": 14.31,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:40:07Z"
     },
     {
@@ -2393,7 +2393,7 @@
       "e2e_s_p50": 13.883,
       "e2e_s_p99": 14.475,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:40:58Z"
     },
     {
@@ -2434,7 +2434,7 @@
       "e2e_s_p50": 21.038,
       "e2e_s_p99": 21.046,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:41:41Z"
     },
     {
@@ -2475,7 +2475,7 @@
       "e2e_s_p50": 21.32,
       "e2e_s_p99": 21.527,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:42:04Z"
     },
     {
@@ -2516,7 +2516,7 @@
       "e2e_s_p50": 43.053,
       "e2e_s_p99": 43.441,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:42:50Z"
     },
     {
@@ -2557,7 +2557,7 @@
       "e2e_s_p50": 39.437,
       "e2e_s_p99": 39.827,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:43:34Z"
     },
     {
@@ -2598,7 +2598,7 @@
       "e2e_s_p50": 39.511,
       "e2e_s_p99": 39.813,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:44:17Z"
     },
     {
@@ -2639,7 +2639,7 @@
       "e2e_s_p50": 18.646,
       "e2e_s_p99": 20.989,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:45:00Z"
     },
     {
@@ -2684,7 +2684,7 @@
       "e2e_s_p50": 21.279,
       "e2e_s_p99": 21.445,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:45:41Z"
     },
     {
@@ -2725,7 +2725,7 @@
       "e2e_s_p50": 36.309,
       "e2e_s_p99": 36.831,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:46:59Z"
     },
     {
@@ -2766,7 +2766,7 @@
       "e2e_s_p50": 36.211,
       "e2e_s_p99": 36.775,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:48:16Z"
     },
     {
@@ -2807,7 +2807,7 @@
       "e2e_s_p50": 36.261,
       "e2e_s_p99": 36.871,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:49:34Z"
     },
     {
@@ -2848,7 +2848,7 @@
       "e2e_s_p50": 14.944,
       "e2e_s_p99": 20.942,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:50:16Z"
     },
     {
@@ -2889,7 +2889,7 @@
       "e2e_s_p50": 21.403,
       "e2e_s_p99": 21.574,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:51:28Z"
     },
     {
@@ -2930,7 +2930,7 @@
       "e2e_s_p50": 26.521,
       "e2e_s_p99": 27.203,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:53:35Z"
     },
     {
@@ -2971,7 +2971,7 @@
       "e2e_s_p50": 26.504,
       "e2e_s_p99": 27.081,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:55:43Z"
     },
     {
@@ -3012,7 +3012,7 @@
       "e2e_s_p50": 26.456,
       "e2e_s_p99": 27.056,
       "per_replica_kv_tokens": 3638272,
-      "slice_kv_tokens": 58212352,
+      "slice_kv_tokens": 116424704,
       "timestamp": "2026-11-03T12:57:50Z"
     }
   ]

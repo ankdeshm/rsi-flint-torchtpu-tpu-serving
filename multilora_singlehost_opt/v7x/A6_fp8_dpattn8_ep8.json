@@ -1,8 +1,8 @@
 {
   "run_name": "A6_fp8_dpattn8_ep8",
   "status": "unsupported",
-  "worker_id": "rqkr",
-  "host": "flint-opt-sglang-rqkr-56vvf",
+  "worker_id": "worker-0",
+  "host": "tpu-v7x-worker",
   "axis": "A_parallelism",
   "description": "Block-FP8 weights + FP8 KV, DP-Attention (DP=4, attn_tp=2, TP=8) + EP=8 (--enable-dp-attention --enable-dp-lm-head)",
   "launch_diagnostics": {

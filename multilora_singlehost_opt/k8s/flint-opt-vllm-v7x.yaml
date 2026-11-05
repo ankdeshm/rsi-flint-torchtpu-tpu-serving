@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: flint-opt-vllm-rqkr
+  name: flint-opt-vllm-v7x
   namespace: default
   labels:
-    app: flint-opt-vllm-rqkr
+    app: flint-opt-vllm-v7x
 spec:
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app: flint-opt-vllm-rqkr
+        app: flint-opt-vllm-v7x
       annotations:
         gke-gcsfuse/volumes: "true"
         gke-gcsfuse/cpu-limit: "0"
@@ -32,7 +32,7 @@ spec:
       - {key: cloud.google.com/gke-spot, operator: Exists, effect: NoSchedule}
       containers:
       - name: vllm-tpu
-        image: us-central1-docker.pkg.dev/your-gcp-project-id/vllm/vllm-torchtpu-bench:v0.32.0
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/vllm-torchtpu-bench:v0.32.0
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
@@ -42,10 +42,10 @@ spec:
           set -euo pipefail
           ulimit -c 0 || true
           mkdir -p /workspace/flint_vllm_e3
-          cp /scripts/bench_flint_vllm_rqkr.py /workspace/flint_vllm_e3/bench_flint_vllm_rqkr.py
-          cp /models/benchmark-results/flint_v7x_rqkr_opt/scripts/install_flint_vllm.py /workspace/flint_vllm_e3/install_flint_vllm.py
-          cp /scripts/bench_flint_vllm_rqkr.py /models/benchmark-results/flint_v7x_rqkr_opt/scripts/bench_flint_vllm_rqkr.py || true
-          python3 -u /workspace/flint_vllm_e3/bench_flint_vllm_rqkr.py
+          cp /scripts/bench_flint_vllm_singlehost.py /workspace/flint_vllm_e3/bench_flint_vllm_singlehost.py
+          cp /models/benchmark-results/flint_v7x_singlehost_opt/scripts/install_flint_vllm.py /workspace/flint_vllm_e3/install_flint_vllm.py
+          cp /scripts/bench_flint_vllm_singlehost.py /models/benchmark-results/flint_v7x_singlehost_opt/scripts/bench_flint_vllm_singlehost.py || true
+          python3 -u /workspace/flint_vllm_e3/bench_flint_vllm_singlehost.py
         env:
         - {name: PYTHONUNBUFFERED, value: "1"}
         - {name: PJRT_DEVICE, value: "TPU"}
@@ -66,4 +66,4 @@ spec:
       - name: ramtmp
         emptyDir: {medium: Memory, sizeLimit: 120Gi}
       - name: e3-scripts
-        configMap: {name: flint-vllm-rqkr-cm}
+        configMap: {name: flint-vllm-v7x-cm}
