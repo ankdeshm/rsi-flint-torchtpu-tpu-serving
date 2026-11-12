@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flint-opt-vllm-v7x
+  namespace: default
+  labels:
+    app: flint-opt-vllm-v7x
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: flint-opt-vllm-v7x
+      annotations:
+        gke-gcsfuse/volumes: "true"
+        gke-gcsfuse/cpu-limit: "0"
+        gke-gcsfuse/memory-limit: "0"
+        gke-gcsfuse/ephemeral-storage-limit: "0"
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: default
+      nodeSelector:
+        cloud.google.com/gke-nodepool: YOUR_TPU_NODEPOOL
+        cloud.google.com/gke-tpu-accelerator: tpu7x
+        cloud.google.com/gke-tpu-topology: 2x2x2
+        kubernetes.io/hostname: tpu-v7x-worker-0
+      tolerations:
+      - {key: google.com/tpu, operator: Exists, effect: NoSchedule}
+      - {key: cloud.google.com/gke-queued, operator: Exists, effect: NoSchedule}
+      - {key: cloud.google.com/gke-spot, operator: Exists, effect: NoSchedule}
+      containers:
+      - name: vllm-tpu
+        image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/vllm/vllm-torchtpu-bench:v0.32.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        command: ["bash", "-lc"]
+        args:
+        - |
+          set -euo pipefail
+          ulimit -c 0 || true
+          mkdir -p /workspace/flint_vllm_e3
+          cp /scripts/bench_flint_vllm_singlehost.py /workspace/flint_vllm_e3/bench_flint_vllm_singlehost.py
+          cp /models/benchmark-results/flint_v7x_singlehost_opt/scripts/install_flint_vllm.py /workspace/flint_vllm_e3/install_flint_vllm.py
+          cp /scripts/bench_flint_vllm_singlehost.py /models/benchmark-results/flint_v7x_singlehost_opt/scripts/bench_flint_vllm_singlehost.py || true
+          python3 -u /workspace/flint_vllm_e3/bench_flint_vllm_singlehost.py
+        env:
+        - {name: PYTHONUNBUFFERED, value: "1"}
+        - {name: PJRT_DEVICE, value: "TPU"}
+        - {name: GCS_ARTIFACTS_BUCKET, value: "your-tpu-artifacts-bucket"}
+        resources:
+          requests: {google.com/tpu: "4", cpu: "32", memory: 240Gi}
+          limits: {google.com/tpu: "4"}
+        volumeMounts:
+        - {name: models-gcs, mountPath: /models}
+        - {name: dshm, mountPath: /dev/shm}
+        - {name: ramtmp, mountPath: /tmp}
+        - {name: e3-scripts, mountPath: /scripts}
+      volumes:
+      - name: models-gcs
+        persistentVolumeClaim: {claimName: tpu-models-gcs-pvc}
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 350Gi}
+      - name: ramtmp
+        emptyDir: {medium: Memory, sizeLimit: 120Gi}
+      - name: e3-scripts
+        configMap: {name: flint-vllm-v7x-cm}
